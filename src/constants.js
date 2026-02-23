@@ -21,17 +21,12 @@ export const PRIORITY = {
 };
 
 export const SEDES = [
-  "Egaña", "Suecia 7", "Suecia 8", "Isidora", "Tobalaba 4",
-  "S2GO", "Abedules 3", "TP Huechuraba", "Salesforce", "Torre Condell",
-  "Londres", "Santa Rosa",
-];
-
-export const PAYMENTS = [
-  "Pago inmediato",
-  "Transferencia 15 días",
-  "Transferencia 30 días",
-  "Crédito proveedor",
-  "Cheque 30 días",
+  "Abedules", "Alto el Golf", "Apoquindo", "BCI-1 Kennedy", "Cencosud-1",
+  "Cerro el Plomo", "Fundación Chile", "Holanda", "Londres",
+  "Los Militares - NACE", "Manuel Montt", "Monjitas", "MUT",
+  "Neohaus", "Nueva Las Condes", "Plaza Egaña", "Principe de Gales",
+  "Rosario Norte", "S2GO", "SalesForce", "San Sebastian - MACH",
+  "Santa Lucia", "Suecia", "Tobalaba-P3", "Vespucio",
 ];
 
 export const fmt = (n) => (n == null ? "—" : "$" + n.toLocaleString("es-CL"));
