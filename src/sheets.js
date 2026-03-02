@@ -4,7 +4,6 @@ const APPS_SCRIPT_URL = import.meta.env.VITE_APPS_SCRIPT_URL;
 const SHEET_NAME = "Tickets";
 const RANGE = SHEET_NAME + "!A:O";
 
-// A=id B=num C=category D=desc E=sede F=priority G=stage H=by I=date J=provider K=amount L=payment M=closedAt N=execDate O=comments
 function rowToItem(row) {
   return {
     id: parseInt(row[0]) || Date.now(),
@@ -44,5 +43,6 @@ async function callAppsScript(action, payload) {
 export async function createTicket(item) { return callAppsScript("create", { row: itemToRow(item) }); }
 export async function updateTicket(item) { return callAppsScript("update", { id: item.id, row: itemToRow(item) }); }
 export async function deleteTicket(id) { return callAppsScript("delete", { id }); }
+export async function sendNotification(emails, subject, body) { return callAppsScript("notify", { emails, subject, body }); }
 export async function testConnection() { try { const url = "https://sheets.googleapis.com/v4/spreadsheets/"+SHEET_ID+"/values/"+SHEET_NAME+"!A1:A1?key="+API_KEY; const res = await fetch(url); return res.ok; } catch { return false; } }
 export function isConfigured() { return !!(SHEET_ID && API_KEY && APPS_SCRIPT_URL); }

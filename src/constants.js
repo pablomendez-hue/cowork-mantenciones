@@ -34,9 +34,30 @@ export const USERS = [
   { name:"Pablo Mendez", email:"pablo.mendez@coworklatam.com", role:"admin" },
   { name:"Mar\u00eda Ubilla", email:"maria.p@co-work.cl", role:"ops" },
   { name:"Sebastian O\u0027ryan", email:"sebastian.oryan@co-work.cl", role:"admin" },
+  { name:"Aneley", email:"aneley@co-work.cl", role:"cm" },
+  { name:"Eduardo Arias", email:"eduardo.arias@co-work.cl", role:"cm" },
+  { name:"Diana Pabon", email:"diana.pabon@co-work.cl", role:"cm" },
+  { name:"Oryady Diaz", email:"oryady.diaz@co-work.cl", role:"cm" },
+  { name:"Jennifer Pachano", email:"jennifer.pachano@co-work.cl", role:"cm" },
+  { name:"Albert Mendez", email:"albert.mendez@co-work.cl", role:"cm" },
+  { name:"Erika Contreras", email:"erika.contreras@co-work.cl", role:"cm" },
+  { name:"Sthella Lugo", email:"sthella.lugo@co-work.cl", role:"cm" },
+  { name:"Ysabel Villarroel", email:"ysabel.villarroel@co-work.cl", role:"cm" },
+  { name:"Yessica Alvarado", email:"yessica.alvarado@co-work.cl", role:"cm" },
+  { name:"Milagros", email:"milagros@co-work.cl", role:"cm" },
+  { name:"Yenire Vera", email:"yenire.vera@co-work.cl", role:"cm" },
+  { name:"Maria Soares", email:"maria.soares@co-work.cl", role:"cm" },
+  { name:"L. Olivares", email:"l.olivares@co-work.cl", role:"cm" },
+  { name:"Jacqueline Pulgar", email:"jacqueline.pulgar@co-work.cl", role:"cm" },
+  { name:"Luisana Pulido", email:"luisana.pulido@co-work.cl", role:"cm" },
+  { name:"Milecsy Blanco", email:"milecsy.blanco@co-work.cl", role:"cm" },
+  { name:"Lennis", email:"lennis@co-work.cl", role:"cm" },
+  { name:"Armando Gutierrez", email:"armando.gutierrez@co-work.cl", role:"cm" },
+  { name:"Jose Diaz", email:"jose.diaz@co-work.cl", role:"cm" },
 ];
 export const ROLE_LABELS = { cm: "Comercial", ops: "Operaciones", admin: "Administrador" };
 export const ROLE_COLORS = { cm: "#3b82f6", ops: "#f97316", admin: "#8b5cf6" };
+export const NOTIFY_EMAILS = { admin: ["maria.fernanda@co-work.cl","pablo.mendez@coworklatam.com","sebastian.oryan@co-work.cl"], ops: ["luis.morales@co-work.cl","osaris@co-work.cl","maria.p@co-work.cl"] };
 export const fmt = (n) => (n == null ? "\u2014" : "$" + n.toLocaleString("es-CL"));
 export const fdate = (d) => { if (!d) return ""; const dt = new Date(d + "T12:00:00"); return dt.toLocaleDateString("es-CL", { day: "2-digit", month: "short" }); };
 export const daysAgo = (d) => { if (!d) return 0; return Math.floor((new Date() - new Date(d + "T12:00:00")) / 86400000); };
