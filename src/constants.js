@@ -26,9 +26,9 @@ export const SEDES = [
 ];
 export const USERS = [
   { name:"Luis Morales", email:"luis.morales@co-work.cl", role:"ops" },
-  { name:"Ana Rondon", email:"ana@co-work.cl", role:"cm" },
-  { name:"Vito Lacasella", email:"vito@co-work.cl", role:"cm" },
-  { name:"Emilia Jorges", email:"emilia@co-work.cl", role:"cm" },
+  { name:"Ana Rondon", email:"ana@co-work.cl", role:"admin" },
+  { name:"Vito Lacasella", email:"vito@co-work.cl", role:"admin" },
+  { name:"Emilia Jorges", email:"emilia@co-work.cl", role:"admin" },
   { name:"Osaris Gomez", email:"osaris@co-work.cl", role:"ops" },
   { name:"Maria Fernanda", email:"maria.fernanda@co-work.cl", role:"admin" },
   { name:"Pablo Mendez", email:"pablo.mendez@coworklatam.com", role:"admin" },
