@@ -16,9 +16,9 @@ function saveProv(n){if(!n)return;const l=getProvs();if(!l.includes(n)){l.push(n
 function getCurUser(){try{return JSON.parse(localStorage.getItem("cw_user"))}catch{return null}}
 function setCurUser(u){localStorage.setItem("cw_user",JSON.stringify(u))}
 function logoutUser(){localStorage.removeItem("cw_user")}
-function getSavedUsers(){try{const s=localStorage.getItem("cw_users_list");return s?JSON.parse(s):null}catch{return null}}
-function setSavedUsers(l){localStorage.setItem("cw_users_list",JSON.stringify(l))}
-function getAllUsers(){return getSavedUsers()||USERS}
+function getSavedUsers(){try{const s=localStorage.getItem("cw_users_extra");return s?JSON.parse(s):[]}catch{return[]}}
+function setSavedUsers(l){localStorage.setItem("cw_users_extra",JSON.stringify(l))}
+function getAllUsers(){const base=USERS;const extra=getSavedUsers();const baseEmails=new Set(base.map(u=>u.email.toLowerCase()));const merged=[...base,...extra.filter(u=>!baseEmails.has(u.email.toLowerCase()))];return merged}
 const STG={requerimiento:"Requerimiento",pago:"Pago",en_proceso:"En Proceso",finalizado:"Finalizado"};
 const I={appearance:"none",WebkitAppearance:"none",background:"#fff",border:"1px solid #e5e5e5",borderRadius:7,padding:"8px 11px",fontSize:12,color:"#1a1a1a",width:"100%",fontFamily:"'Sora',sans-serif",outline:"none",boxSizing:"border-box"};
 const BP={background:"#1a1a1a",color:"#fff",border:"none",borderRadius:7,padding:"8px 16px",fontSize:12,fontWeight:500,cursor:"pointer",fontFamily:"'Sora',sans-serif",display:"inline-flex",alignItems:"center",justifyContent:"center",gap:5};
@@ -31,7 +31,7 @@ const CSS=`@keyframes fadeIn{from{opacity:0}to{opacity:1}}@keyframes slideUp{fro
 
 function LoginScreen({onLogin}){
   const[email,setEmail]=useState("");const[err,setErr]=useState("");
-  const go=()=>{const users=getAllUsers();const em=email.trim().toLowerCase().replace(/\\s+/g,"");const u=users.find(x=>x.email.toLowerCase().replace(/\\s+/g,"")===em);if(u){setCurUser(u);onLogin(u)}else setErr("Correo no autorizado")};
+  const go=()=>{const users=getAllUsers();const em=email.trim().toLowerCase();const u=users.find(x=>x.email.toLowerCase()===em);if(u){setCurUser(u);onLogin(u)}else setErr("Correo no autorizado")};
   return(<div style={{fontFamily:"'Sora',sans-serif",minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"#fafafa"}}><div style={{background:"#fff",borderRadius:12,padding:"40px 36px",width:380,maxWidth:"92vw",boxShadow:"0 8px 32px rgba(0,0,0,0.06)"}}><div style={{textAlign:"center",marginBottom:28}}><div style={{fontSize:18,fontWeight:700}}>Cowork LABS</div><div style={{fontSize:12,color:"#b3b3b3",marginTop:4}}>Mantenciones</div></div><div style={{marginBottom:16}}><label style={FL}>Correo corporativo</label><input value={email} onChange={e=>{setEmail(e.target.value);setErr("")}} placeholder="tu@co-work.cl" style={I} onKeyDown={e=>e.key==="Enter"&&go()} autoFocus/></div>{err&&<div style={{color:"#dc2626",fontSize:11,marginBottom:12,background:"#fef2f2",padding:"8px 12px",borderRadius:6}}>{err}</div>}<button onClick={go} disabled={!email.trim()} style={{...BP,width:"100%",justifyContent:"center",padding:"10px",opacity:email.trim()?1:0.35}}>Entrar</button></div></div>);
 }
 function SedeSelect({value,onChange}){
@@ -101,8 +101,9 @@ function Dashboard({items,onBack}){
   const maxOpenCat=Math.max(...catKeys.map(c=>items.filter(t=>t.category===c&&t.stage!=="finalizado").length),8);
   const uniqProvs=[...new Set(items.filter(i=>i.provider).map(i=>i.provider))].sort();
   const maxOpenProv=Math.max(...uniqProvs.map(p=>items.filter(t=>t.provider===p&&t.stage!=="finalizado").length),8);
-  const addU=()=>{if(!nn.trim()||!ne.trim())return;const u=[...users,{name:nn.trim(),email:ne.trim().toLowerCase(),role:nr}];setUsers(u);setSavedUsers(u);setNn("");setNe("")};
-  const delU=idx=>{const u=[...users];u.splice(idx,1);setUsers(u);setSavedUsers(u)};
+  const addU=()=>{if(!nn.trim()||!ne.trim())return;const em=ne.trim().toLowerCase();if(users.find(u=>u.email.toLowerCase()===em))return;const extra=[...getSavedUsers(),{name:nn.trim(),email:em,role:nr}];setSavedUsers(extra);setUsers(getAllUsers());setNn("");setNe("")};
+  const baseEmails=new Set(USERS.map(u=>u.email.toLowerCase()));
+  const delU=idx=>{const u=users[idx];if(!u||baseEmails.has(u.email.toLowerCase()))return;const extra=getSavedUsers().filter(x=>x.email.toLowerCase()!==u.email.toLowerCase());setSavedUsers(extra);setUsers(getAllUsers())};
   const ts=a=>({padding:"8px 16px",fontSize:12,fontWeight:500,cursor:"pointer",borderRadius:7,border:"none",fontFamily:"'Sora',sans-serif",background:a?"#1a1a1a":"#fff",color:a?"#fff":"#737373"});
 
   const totalOpen=items.filter(t=>t.stage!=="finalizado").length;
@@ -181,7 +182,7 @@ function Dashboard({items,onBack}){
         <div style={SL}>Usuarios registrados ({users.length})</div>
         <div style={{background:"#fff",borderRadius:10,border:"1px solid #f0f0f0",overflow:"hidden",marginBottom:16}}>
           <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}><thead><tr style={{borderBottom:"1px solid #e5e5e5"}}>{["Nombre","Email","Rol",""].map((h,i)=><th key={i} style={{padding:"10px 14px",textAlign:"left",fontSize:10,fontWeight:600,color:"#a3a3a3",textTransform:"uppercase",width:i===3?40:undefined}}>{h}</th>)}</tr></thead>
-          <tbody>{users.map((u,i)=>{const rc=ROLE_COLORS[u.role];return<tr key={i} style={{borderBottom:"1px solid #f5f5f5"}}><td style={{padding:"8px 14px",fontWeight:500}}>{u.name}</td><td style={{padding:"8px 14px",color:"#737373",fontFamily:"'JetBrains Mono',monospace",fontSize:11}}>{u.email}</td><td style={{padding:"8px 14px"}}><span style={{fontSize:10,fontWeight:500,color:rc,background:rc+"15",padding:"2px 8px",borderRadius:4}}>{ROLE_LABELS[u.role]}</span></td><td style={{padding:"8px 14px"}}><button onClick={()=>delU(i)} style={{background:"none",border:"none",cursor:"pointer",color:"#e0e0e0",padding:2}} onMouseEnter={e=>e.currentTarget.style.color="#dc2626"} onMouseLeave={e=>e.currentTarget.style.color="#e0e0e0"}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button></td></tr>})}</tbody></table>
+          <tbody>{users.map((u,i)=>{const rc=ROLE_COLORS[u.role];const isBase=baseEmails.has(u.email.toLowerCase());return<tr key={i} style={{borderBottom:"1px solid #f5f5f5"}}><td style={{padding:"8px 14px",fontWeight:500}}>{u.name}{isBase&&<span style={{fontSize:8,color:"#d4d4d4",marginLeft:6}}>base</span>}</td><td style={{padding:"8px 14px",color:"#737373",fontFamily:"'JetBrains Mono',monospace",fontSize:11}}>{u.email}</td><td style={{padding:"8px 14px"}}><span style={{fontSize:10,fontWeight:500,color:rc,background:rc+"15",padding:"2px 8px",borderRadius:4}}>{ROLE_LABELS[u.role]}</span></td><td style={{padding:"8px 14px"}}>{!isBase&&<button onClick={()=>delU(i)} style={{background:"none",border:"none",cursor:"pointer",color:"#e0e0e0",padding:2}} onMouseEnter={e=>e.currentTarget.style.color="#dc2626"} onMouseLeave={e=>e.currentTarget.style.color="#e0e0e0"}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>}</td></tr>})}</tbody></table>
         </div>
         <div style={SL}>Agregar usuario</div>
         <div style={{display:"flex",gap:8,alignItems:"flex-end"}}><div style={{flex:1}}><label style={FL}>Nombre</label><input value={nn} onChange={e=>setNn(e.target.value)} placeholder="Nombre" style={I}/></div><div style={{flex:1.5}}><label style={FL}>Email</label><input value={ne} onChange={e=>setNe(e.target.value)} placeholder="email@co-work.cl" style={I}/></div><div style={{flex:0.8}}><label style={FL}>Rol</label><select value={nr} onChange={e=>setNr(e.target.value)} style={{...I,cursor:"pointer"}}><option value="cm">Comercial</option><option value="ops">Operaciones</option><option value="admin">Administrador</option></select></div><button onClick={addU} disabled={!nn.trim()||!ne.trim()} style={{...BP,padding:"8px 16px",opacity:nn.trim()&&ne.trim()?1:0.35}}>Agregar</button></div>
