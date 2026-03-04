@@ -276,7 +276,7 @@ export default function App(){
   const filt=items.filter(t=>{if(search){const s=search.toLowerCase();if(!t.desc.toLowerCase().includes(s)&&!t.sede.toLowerCase().includes(s)&&!(t.provider||"").toLowerCase().includes(s)&&!String(t.num).padStart(3,"0").includes(s))return false}if(fCat&&t.category!==fCat)return false;if(fPri&&t.priority!==fPri)return false;return true});
   const selD=sel?items.find(i=>i.id===sel.id):null;
   const act=items.filter(i=>i.stage!=="finalizado").length;const totC=items.reduce((s,i)=>s+(i.amount||0),0);
-  const cls=myItems.filter(i=>i.closedAt);const avg=cls.length?Math.round(cls.map(i=>daysAgo(i.date)-daysAgo(i.closedAt)).reduce((a,b)=>a+b,0)/cls.length):0;
+  const cls=items.filter(i=>i.closedAt);const avg=cls.length?Math.round(cls.map(i=>daysAgo(i.date)-daysAgo(i.closedAt)).reduce((a,b)=>a+b,0)/cls.length):0;
   if(loading)return<div style={{fontFamily:"'Sora',sans-serif",display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",color:"#a3a3a3",fontSize:14}}>Cargando...</div>;
   const rc=ROLE_COLORS[user.role];
   return(
