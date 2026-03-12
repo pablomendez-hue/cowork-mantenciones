@@ -58,6 +58,7 @@ export const USERS = [
   { name:"Milagros Gonzalez", email:"milagros.gonzalez@co-work.cl", role:"cm" },
   { name:"Paula Aliste", email:"paula.aliste@co-work.cl", role:"cm" },
   { name:"Sonnie Rubio", email:"sonnie.rubio@co-work.cl", role:"cm" },
+  { name:"Carlos Sanchez", email:"carlos.sanchez@co-work.cl", role:"ops" },
 ];
 export const ROLE_LABELS = { cm: "Comercial", ops: "Operaciones", admin: "Administrador" };
 export const ROLE_COLORS = { cm: "#3b82f6", ops: "#f97316", admin: "#8b5cf6" };
