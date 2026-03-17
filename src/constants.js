@@ -53,7 +53,7 @@ export const USERS = [
   { name:"Milecsy Blanco", email:"milecsy.blanco@co-work.cl", role:"cm" },
   { name:"Lennis", email:"lennis@co-work.cl", role:"cm" },
   { name:"Armando Gutierrez", email:"armando.gutierrez@co-work.cl", role:"cm" },
-  { name:"Jose Diaz", email:"jose.diaz@co-work.cl", role:"cm" },
+  { name:"Jose Diaz", email:"jose.diaz@co-work.cl", role:"ops" },
   { name:"Maria Jesus Ubilla", email:"jesus.ubilla@co-work.cl", role:"ops" },
   { name:"Milagros Gonzalez", email:"milagros.gonzalez@co-work.cl", role:"cm" },
   { name:"Paula Aliste", email:"paula.aliste@co-work.cl", role:"cm" },
