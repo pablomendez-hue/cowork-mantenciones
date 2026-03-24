@@ -49,14 +49,20 @@ function getStats(prov,prod,latestMap,trendMap){
   for(const s of sedes){
     for(const[f,q]of(trendMap[`${s}||${prov}||${prod}`]||[])){dm[f]=(dm[f]||0)+q;}
   }
-  const agg=Object.entries(dm).sort((a,b)=>a[0].localeCompare(b[0])).slice(-12);
-  const med=median(agg.map(([,v])=>v));
   const sedeStatus=sedes.map(s=>{
     const min=getMinStk(s,prov,prod);
     const e=latestMap[`${s}||${prov}||${prod}`];
     return{sede:s,cantidad:e?.cantidad??null,min,level:getLevel(e?.cantidad??null,min),fecha:e?.fecha};
   });
   const total=sedeStatus.reduce((s,x)=>s+(x.cantidad||0),0);
+  // Replace the latest date in agg with the real total so chart last point = total actual
+  let agg=Object.entries(dm).sort((a,b)=>a[0].localeCompare(b[0])).slice(-12);
+  const latestDate=sedeStatus.filter(s=>s.fecha).reduce((d,s)=>s.fecha>d?s.fecha:d,"");
+  if(latestDate){
+    agg=[...agg.filter(([d])=>d!==latestDate),[latestDate,total]]
+      .sort((a,b)=>a[0].localeCompare(b[0])).slice(-12);
+  }
+  const med=median(agg.map(([,v])=>v));
   return{agg,med,sedeStatus,total,alerts:sedeStatus.filter(x=>x.level==="rojo"||x.level==="amarillo"),sedeCount:sedes.length};
 }
 

@@ -108,6 +108,14 @@ function getAllProductsGrouped() {
   return groups;
 }
 
+// ── Median helper ─────────────────────────────────────────────────────────────
+function median(arr) {
+  if (!arr.length) return 0;
+  const s = [...arr].sort((a,b)=>a-b);
+  const h = Math.floor(s.length/2);
+  return s.length%2 ? s[h] : (s[h-1]+s[h])/2;
+}
+
 // ── Mini sparkline ────────────────────────────────────────────────────────────
 function Spark({ data, min_stock }) {
   if (!data || data.length < 2) return null;
@@ -124,6 +132,29 @@ function Spark({ data, min_stock }) {
       <line x1={pad} y1={minY} x2={w-pad} y2={minY} stroke="#fde68a" strokeWidth="1" strokeDasharray="3,2"/>
       <path d={pathD} fill="none" stroke="#94a3b8" strokeWidth="1.5"/>
       {pts.map((p,i)=><circle key={i} cx={p.x} cy={p.y} r={2.5} fill={p.y>=minY?"#f59e0b":"#22c55e"}/>)}
+    </svg>
+  );
+}
+
+// ── Sparkline for CM form (wide, with breakeven/median line) ──────────────────
+function SparkCM({ data, breakeven, width=220, height=32 }) {
+  if (!data || data.length < 2) return null;
+  const pl=3, pr=3, pt=5, pb=4;
+  const vals = data.map(d=>d[1]);
+  const maxV = Math.max(...vals, breakeven*1.4, 1);
+  const xStep = (width-pl-pr) / (data.length-1);
+  const y = v => height-pb-((v/maxV)*(height-pt-pb));
+  const beY = y(breakeven);
+  const pts = data.map(([,v],i)=>({ x:pl+i*xStep, y:y(v), v }));
+  const pathD = pts.map((p,i)=>`${i===0?"M":"L"}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
+  return (
+    <svg width={width} height={height} style={{display:"block",overflow:"visible"}}>
+      <line x1={pl} y1={beY} x2={width-pr} y2={beY} stroke="#c4b5fd" strokeWidth="1" strokeDasharray="3,2"/>
+      <path d={pathD} fill="none" stroke="#94a3b8" strokeWidth="1.5" strokeLinejoin="round"/>
+      {pts.map((p,i)=>(
+        <circle key={i} cx={p.x} cy={p.y} r={i===pts.length-1?3:2}
+          fill={p.v>=breakeven?"#22c55e":"#f59e0b"} stroke="#fff" strokeWidth="1"/>
+      ))}
     </svg>
   );
 }
@@ -431,7 +462,6 @@ function FormRegistro({ sede, latestMap, trendMap, user, conn, onSaved, isPrevie
   const [cantidades, setCantidades] = useState({});
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [expandedHist, setExpandedHist] = useState(null);
   const [showAddForm, setShowAddForm] = useState(null);
   const [newProd, setNewProd] = useState({ producto:"", proveedor:"", min_stock:1 });
   const [extraProds, setExtraProds] = useState(()=>getExtraProds(sede));
@@ -528,44 +558,45 @@ function FormRegistro({ sede, latestMap, trendMap, user, conn, onSaved, isPrevie
                       const mkey=`${sede}||${p.proveedor}||${p.producto}`;
                       const last=latestMap?.[mkey];
                       const hist=trendMap?.[mkey];
+                      const histSorted=hist?[...hist].sort((a,b)=>a[0].localeCompare(b[0])):[];
+                      const be=histSorted.length?median(histSorted.map(([,v])=>v)):0;
                       const level=getLevel(last?.cantidad??null,p.min_stock);
                       const cs=CELL_STYLE[level];
                       const val=cantidades[fkey]??"";
-                      const histOpen=expandedHist===fkey;
+                      const hasHist=histSorted.length>=2;
                       return (
                         <div key={fkey} style={{ borderBottom:idx<subProds.length-1?"1px solid #f5f5f5":"none",background:val!==""?"#f8fffe":"transparent" }}>
-                          <div style={{ display:"flex",alignItems:"center",gap:12,padding:"9px 14px" }}>
-                            <div style={{ width:6,height:6,borderRadius:99,background:CELL_STYLE[level].color==="transparent"?"#d4d4d4":CELL_STYLE[level].color,flexShrink:0 }}/>
-                            <div style={{ flex:1 }}>
+                          <div style={{ display:"flex",alignItems:"flex-start",gap:12,padding:"9px 14px" }}>
+                            <div style={{ width:6,height:6,borderRadius:99,background:CELL_STYLE[level].color==="transparent"?"#d4d4d4":CELL_STYLE[level].color,flexShrink:0,marginTop:4 }}/>
+                            <div style={{ flex:1,minWidth:0 }}>
                               <div style={{ fontSize:12,fontWeight:500 }}>{p.producto}</div>
-                              <div style={{ fontSize:10,color:"#a3a3a3",marginTop:1,display:"flex",alignItems:"center",gap:6 }}>
+                              <div style={{ fontSize:10,color:"#a3a3a3",marginTop:1,display:"flex",alignItems:"center",gap:5,flexWrap:"wrap" }}>
                                 <span>mín {p.min_stock}</span>
                                 {last&&<span>· <strong style={{ color:cs.color }}>{last.cantidad}</strong> <span style={{ color:"#d4d4d4" }}>({fdate(last.fecha)})</span></span>}
-                                {hist&&hist.length>0&&(
-                                  <button onClick={()=>setExpandedHist(histOpen?null:fkey)} style={{ background:"none",border:"none",cursor:"pointer",padding:0,color:"#6366f1",fontSize:9,fontFamily:"'Sora',sans-serif",display:"flex",alignItems:"center",gap:2 }}>
-                                    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                      {histOpen?<polyline points="18 15 12 9 6 15"/>:<polyline points="6 9 12 15 18 9"/>}
-                                    </svg>
-                                    {hist.length} registros
-                                  </button>
-                                )}
+                                {be>0&&<span style={{ color:"#a78bfa" }}>· eq. {Math.round(be)}</span>}
                               </div>
+                              {hasHist&&<>
+                                <div style={{ marginTop:5 }}>
+                                  <SparkCM data={histSorted} breakeven={be} width={Math.min(220,histSorted.length*20+6)}/>
+                                </div>
+                                <div style={{ display:"flex",gap:2,marginTop:3,flexWrap:"wrap" }}>
+                                  {histSorted.map(([f,q],i)=>(
+                                    <span key={i} title={fdate(f)} style={{
+                                      fontSize:8,fontFamily:"'JetBrains Mono',monospace",
+                                      color:q>=be?"#16a34a":q>0?"#b45309":"#dc2626",
+                                      background:q>=be?"#f0fdf4":q>0?"#fffbeb":"#fef2f2",
+                                      padding:"1px 4px",borderRadius:3,
+                                      fontWeight:i===histSorted.length-1?700:400,
+                                      border:`1px solid ${q>=be?"#bbf7d0":q>0?"#fde68a":"#fecaca"}`
+                                    }}>{q}</span>
+                                  ))}
+                                </div>
+                              </>}
                             </div>
                             <input type="number" min="0" step="0.5" value={val}
                               onChange={e=>setCantidades(prev=>({...prev,[fkey]:e.target.value===""?"":parseFloat(e.target.value)}))}
-                              placeholder="—" style={{ ...I,width:80,textAlign:"center"}}/>
+                              placeholder="—" style={{ ...I,width:80,textAlign:"center",flexShrink:0,marginTop:2}}/>
                           </div>
-                          {histOpen&&hist&&hist.length>0&&(
-                            <div style={{ margin:"0 14px 10px",background:"#fafafa",borderRadius:7,border:"1px solid #f0f0f0",overflow:"hidden" }}>
-                              <div style={{ padding:"5px 10px",fontSize:9,fontWeight:600,color:"#b3b3b3",textTransform:"uppercase",letterSpacing:"0.05em",borderBottom:"1px solid #f0f0f0" }}>Últimos {hist.length} registros</div>
-                              {[...hist].sort((a,b)=>b[0].localeCompare(a[0])).map(([f,q],i)=>(
-                                <div key={i} style={{ display:"flex",justifyContent:"space-between",alignItems:"center",padding:"4px 10px",borderBottom:i<hist.length-1?"1px solid #f5f5f5":"none" }}>
-                                  <span style={{ fontSize:10,color:"#737373" }}>{fdate(f)}</span>
-                                  <span style={{ fontSize:11,fontFamily:"'JetBrains Mono',monospace",fontWeight:500,color:q>p.min_stock?"#16a34a":q>0?"#b45309":"#dc2626" }}>{q}</span>
-                                </div>
-                              ))}
-                            </div>
-                          )}
                         </div>
                       );
                     })}
