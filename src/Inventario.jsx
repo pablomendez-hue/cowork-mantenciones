@@ -215,8 +215,8 @@ function SedePanel({ sede, latestMap, trendMap, onClose }) {
     return {...p,entry,trend,min,med,level,cantidad:entry?.cantidad??null};
   });
 
-  const pedir = prodStatus.filter(p=>p.level==="rojo"||p.level==="amarillo"||(p.med>0&&(p.cantidad||0)<p.med));
-  const ok    = prodStatus.filter(p=>!(p.level==="rojo"||p.level==="amarillo"||(p.med>0&&(p.cantidad||0)<p.med)));
+  const pedir = prodStatus.filter(p=>p.level==="rojo"||p.level==="amarillo");
+  const ok    = prodStatus.filter(p=>p.level!=="rojo"&&p.level!=="amarillo");
 
   const lastDate = Object.entries(latestMap)
     .filter(([k])=>k.startsWith(sede+"||"))

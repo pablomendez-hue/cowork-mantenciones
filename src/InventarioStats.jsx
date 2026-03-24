@@ -326,13 +326,9 @@ function PedidosView({allProds,cat,sub,latestMap,trendMap}){
     for(const p of prods){
       const st=getStats(p.producto,latestMap,trendMap);
       // Include if total < median or any sede has alert
-      const needsOrder=st.total<st.med||st.alerts.length>0;
-      if(needsOrder||st.alerts.length>0){
-        // sedes that need it: alert status OR below median
-        const pedirSedes=st.sedeStatus.filter(s=>
-          s.level==="rojo"||s.level==="amarillo"||(st.med>0&&(s.cantidad||0)<st.med)
-        );
-        if(pedirSedes.length>0)items.push({...p,st,pedirSedes,reds:st.alerts.filter(x=>x.level==="rojo").length,ambs:st.alerts.filter(x=>x.level==="amarillo").length});
+      if(st.alerts.length>0){
+        const pedirSedes=st.alerts;
+        items.push({...p,st,pedirSedes,reds:st.alerts.filter(x=>x.level==="rojo").length,ambs:st.alerts.filter(x=>x.level==="amarillo").length});
       }
     }
     return items.sort((a,b)=>(b.reds-a.reds)||b.ambs-a.ambs||a.producto.localeCompare(b.producto));
