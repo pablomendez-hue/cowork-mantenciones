@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { INVENTARIO_CATALOG, INVENTARIO_SEDES } from "./inventario_catalog.js";
 import { INVENTARIO_EXCEL_LATEST, INVENTARIO_EXCEL_TREND } from "./inventario_history.js";
 import { fetchInventario, saveInventarioRegistro } from "./inventario_sheets.js";
@@ -16,6 +16,9 @@ function setSedeCMMap(m) { localStorage.setItem("cw_sede_cm",JSON.stringify(m));
 function getCMSede(email) { return getSedeCMMap()[email.toLowerCase()]||null; }
 function getCached() { try { return JSON.parse(localStorage.getItem("cw_inv_cache")||"[]"); } catch { return []; } }
 function setCached(d) { localStorage.setItem("cw_inv_cache",JSON.stringify(d)); }
+// Extra products per sede (added by CM users)
+function getExtraProds(sede) { try { return (JSON.parse(localStorage.getItem("cw_extra_prods")||"{}")[sede])||[]; } catch { return []; } }
+function saveExtraProds(sede,prods) { try { const all=JSON.parse(localStorage.getItem("cw_extra_prods")||"{}"); all[sede]=prods; localStorage.setItem("cw_extra_prods",JSON.stringify(all)); } catch {} }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function fdate(d) {
@@ -73,7 +76,10 @@ const CAT_COLORS = { "Aseo":"#3b82f6","Cafetería":"#f97316","Papelería":"#8b5c
 const SUBCAT_ORDER = [null,"Corporate Coffee","Café Caribe"];
 
 function getMinStock(sede,proveedor,producto) {
-  return (INVENTARIO_CATALOG[sede]||[]).find(p=>p.proveedor===proveedor&&p.producto===producto)?.min_stock??null;
+  const c=(INVENTARIO_CATALOG[sede]||[]).find(p=>p.proveedor===proveedor&&p.producto===producto);
+  if(c)return c.min_stock;
+  const e=getExtraProds(sede).find(p=>p.proveedor===proveedor&&p.producto===producto);
+  return e?.min_stock??null;
 }
 
 // ── All unique products grouped by categoria + subcategoria ───────────────────
@@ -205,11 +211,20 @@ const TD = { padding:"6px 8px",textAlign:"center",fontSize:11,fontFamily:"'JetBr
 function MatrixTable({ latestMap, filtCat, onSedeClick, activeSedeCol }) {
   const groups = useMemo(()=>getAllProductsGrouped(),[]);
   const sedes = INVENTARIO_SEDES;
-
   const cats = filtCat ? [filtCat] : CAT_ORDER;
+  const ref = useRef(null);
+  useEffect(()=>{ ref.current?.focus(); },[]);
 
   return (
-    <div style={{ overflowX:"auto",overflowY:"auto",flex:1 }}>
+    <div ref={ref} tabIndex={0} style={{ overflowX:"auto",overflowY:"auto",flex:1,outline:"none" }}
+      onKeyDown={e=>{
+        const el=ref.current; if(!el) return;
+        if(e.key===" "){e.preventDefault();el.scrollBy({top:e.shiftKey?-240:240,behavior:"smooth"});}
+        if(e.key==="ArrowRight"){e.preventDefault();el.scrollBy({left:120,behavior:"smooth"});}
+        if(e.key==="ArrowLeft"){e.preventDefault();el.scrollBy({left:-120,behavior:"smooth"});}
+        if(e.key==="ArrowDown"){e.preventDefault();el.scrollBy({top:48,behavior:"smooth"});}
+        if(e.key==="ArrowUp"){e.preventDefault();el.scrollBy({top:-48,behavior:"smooth"});}
+      }}>
       <table style={{ borderCollapse:"collapse",fontSize:11,fontFamily:"'Sora',sans-serif",whiteSpace:"nowrap" }}>
         <thead>
           <tr style={{ position:"sticky",top:0,zIndex:10,background:"#fff" }}>
@@ -335,7 +350,7 @@ function InventarioAdmin({ records, user, conn, onSaved }) {
             Salir del preview
           </button>
         </div>
-        <FormRegistro sede={previewSede} latestMap={latestMap} user={user} conn={conn} onSaved={onSaved} isPreview/>
+        <FormRegistro sede={previewSede} latestMap={latestMap} trendMap={trendMap} user={user} conn={conn} onSaved={onSaved} isPreview/>
       </div>
     );
   }
@@ -398,7 +413,7 @@ function InventarioAdmin({ records, user, conn, onSaved }) {
                 {INVENTARIO_SEDES.map(s=><option key={s} value={s}>{s}</option>)}
               </select>
             </div>
-            <FormRegistro sede={previewSede} latestMap={latestMap} user={user} conn={conn} onSaved={onSaved}/>
+            <FormRegistro sede={previewSede} latestMap={latestMap} trendMap={trendMap} user={user} conn={conn} onSaved={onSaved}/>
           </div>
         )}
         {tab==="directorio"&&<DirectorioCM conn={conn}/>}
@@ -410,14 +425,35 @@ function InventarioAdmin({ records, user, conn, onSaved }) {
 // ══════════════════════════════════════════════════════════════════════════════
 // FORMULARIO DE REGISTRO
 // ══════════════════════════════════════════════════════════════════════════════
-function FormRegistro({ sede, latestMap, user, conn, onSaved, isPreview }) {
+function FormRegistro({ sede, latestMap, trendMap, user, conn, onSaved, isPreview }) {
   const [tipo, setTipo] = useState("stock");
   const [fecha, setFecha] = useState(today());
   const [cantidades, setCantidades] = useState({});
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [expandedHist, setExpandedHist] = useState(null);
+  const [showAddForm, setShowAddForm] = useState(null);
+  const [newProd, setNewProd] = useState({ producto:"", proveedor:"", min_stock:1 });
+  const [extraProds, setExtraProds] = useState(()=>getExtraProds(sede));
 
-  const productos = INVENTARIO_CATALOG[sede]||[];
+  // Merge catalog + extra products
+  const catalogProds = INVENTARIO_CATALOG[sede]||[];
+  const allSedeProds = [...catalogProds];
+  for (const ep of extraProds) {
+    if (!allSedeProds.some(p=>p.proveedor===ep.proveedor&&p.producto===ep.producto)) allSedeProds.push(ep);
+  }
+
+  const handleAddProd = (cat) => {
+    if (!newProd.producto.trim()) return;
+    const np = { proveedor:newProd.proveedor.trim()||"Otro", producto:newProd.producto.trim(), categoria:cat, subcategoria:null, min_stock:Math.max(1,Number(newProd.min_stock)||1) };
+    const updated = [...extraProds, np];
+    setExtraProds(updated);
+    saveExtraProds(sede, updated);
+    setNewProd({ producto:"", proveedor:"", min_stock:1 });
+    setShowAddForm(null);
+  };
+
+  const productos = allSedeProds;
   const cats = CAT_ORDER.filter(c=>productos.some(p=>p.categoria===c));
 
   const handleGuardar = async () => {
@@ -491,25 +527,75 @@ function FormRegistro({ sede, latestMap, user, conn, onSaved, isPreview }) {
                       const fkey=`${p.proveedor}|||${p.producto}`;
                       const mkey=`${sede}||${p.proveedor}||${p.producto}`;
                       const last=latestMap?.[mkey];
+                      const hist=trendMap?.[mkey];
                       const level=getLevel(last?.cantidad??null,p.min_stock);
                       const cs=CELL_STYLE[level];
                       const val=cantidades[fkey]??"";
+                      const histOpen=expandedHist===fkey;
                       return (
-                        <div key={fkey} style={{ display:"flex",alignItems:"center",gap:12,padding:"9px 14px",borderBottom:idx<subProds.length-1?"1px solid #f5f5f5":"none",background:val!==""?"#f8fffe":"transparent" }}>
-                          <div style={{ width:6,height:6,borderRadius:99,background:CELL_STYLE[level].color==="transparent"?"#d4d4d4":CELL_STYLE[level].color,flexShrink:0 }}/>
-                          <div style={{ flex:1 }}>
-                            <div style={{ fontSize:12,fontWeight:500 }}>{p.producto}</div>
-                            <div style={{ fontSize:10,color:"#a3a3a3",marginTop:1 }}>
-                              mín {p.min_stock}
-                              {last&&<span style={{ marginLeft:6 }}>· <strong style={{ color:cs.color }}>{last.cantidad}</strong> <span style={{ color:"#d4d4d4" }}>({fdate(last.fecha)})</span></span>}
+                        <div key={fkey} style={{ borderBottom:idx<subProds.length-1?"1px solid #f5f5f5":"none",background:val!==""?"#f8fffe":"transparent" }}>
+                          <div style={{ display:"flex",alignItems:"center",gap:12,padding:"9px 14px" }}>
+                            <div style={{ width:6,height:6,borderRadius:99,background:CELL_STYLE[level].color==="transparent"?"#d4d4d4":CELL_STYLE[level].color,flexShrink:0 }}/>
+                            <div style={{ flex:1 }}>
+                              <div style={{ fontSize:12,fontWeight:500 }}>{p.producto}</div>
+                              <div style={{ fontSize:10,color:"#a3a3a3",marginTop:1,display:"flex",alignItems:"center",gap:6 }}>
+                                <span>mín {p.min_stock}</span>
+                                {last&&<span>· <strong style={{ color:cs.color }}>{last.cantidad}</strong> <span style={{ color:"#d4d4d4" }}>({fdate(last.fecha)})</span></span>}
+                                {hist&&hist.length>0&&(
+                                  <button onClick={()=>setExpandedHist(histOpen?null:fkey)} style={{ background:"none",border:"none",cursor:"pointer",padding:0,color:"#6366f1",fontSize:9,fontFamily:"'Sora',sans-serif",display:"flex",alignItems:"center",gap:2 }}>
+                                    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                      {histOpen?<polyline points="18 15 12 9 6 15"/>:<polyline points="6 9 12 15 18 9"/>}
+                                    </svg>
+                                    {hist.length} registros
+                                  </button>
+                                )}
+                              </div>
                             </div>
+                            <input type="number" min="0" step="0.5" value={val}
+                              onChange={e=>setCantidades(prev=>({...prev,[fkey]:e.target.value===""?"":parseFloat(e.target.value)}))}
+                              placeholder="—" style={{ ...I,width:80,textAlign:"center"}}/>
                           </div>
-                          <input type="number" min="0" step="0.5" value={val}
-                            onChange={e=>setCantidades(prev=>({...prev,[fkey]:e.target.value===""?"":parseFloat(e.target.value)}))}
-                            placeholder="—" style={{ ...I,width:80,textAlign:"center"}}/>
+                          {histOpen&&hist&&hist.length>0&&(
+                            <div style={{ margin:"0 14px 10px",background:"#fafafa",borderRadius:7,border:"1px solid #f0f0f0",overflow:"hidden" }}>
+                              <div style={{ padding:"5px 10px",fontSize:9,fontWeight:600,color:"#b3b3b3",textTransform:"uppercase",letterSpacing:"0.05em",borderBottom:"1px solid #f0f0f0" }}>Últimos {hist.length} registros</div>
+                              {[...hist].sort((a,b)=>b[0].localeCompare(a[0])).map(([f,q],i)=>(
+                                <div key={i} style={{ display:"flex",justifyContent:"space-between",alignItems:"center",padding:"4px 10px",borderBottom:i<hist.length-1?"1px solid #f5f5f5":"none" }}>
+                                  <span style={{ fontSize:10,color:"#737373" }}>{fdate(f)}</span>
+                                  <span style={{ fontSize:11,fontFamily:"'JetBrains Mono',monospace",fontWeight:500,color:q>p.min_stock?"#16a34a":q>0?"#b45309":"#dc2626" }}>{q}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       );
                     })}
+                    {/* Add product button */}
+                    {!isPreview&&(
+                      showAddForm===cat?(<div style={{ padding:"10px 14px",borderTop:"1px solid #f0f0f0",background:"#fafafa" }}>
+                        <div style={{ display:"flex",gap:8,alignItems:"flex-end",flexWrap:"wrap" }}>
+                          <div style={{ flex:2,minWidth:120 }}>
+                            <label style={{ fontSize:9,color:"#a3a3a3",display:"block",marginBottom:3,textTransform:"uppercase",letterSpacing:"0.04em" }}>Producto</label>
+                            <input value={newProd.producto} onChange={e=>setNewProd(p=>({...p,producto:e.target.value}))} placeholder="Nombre del producto" style={{ ...I,fontSize:11 }}/>
+                          </div>
+                          <div style={{ flex:1.5,minWidth:100 }}>
+                            <label style={{ fontSize:9,color:"#a3a3a3",display:"block",marginBottom:3,textTransform:"uppercase",letterSpacing:"0.04em" }}>Proveedor</label>
+                            <input value={newProd.proveedor} onChange={e=>setNewProd(p=>({...p,proveedor:e.target.value}))} placeholder="Proveedor" style={{ ...I,fontSize:11 }}/>
+                          </div>
+                          <div style={{ width:64 }}>
+                            <label style={{ fontSize:9,color:"#a3a3a3",display:"block",marginBottom:3,textTransform:"uppercase",letterSpacing:"0.04em" }}>Mín.</label>
+                            <input type="number" min="1" value={newProd.min_stock} onChange={e=>setNewProd(p=>({...p,min_stock:e.target.value}))} style={{ ...I,fontSize:11 }}/>
+                          </div>
+                          <button onClick={()=>handleAddProd(cat)} disabled={!newProd.producto.trim()} style={{ ...BP,padding:"8px 12px",opacity:newProd.producto.trim()?1:0.35,flexShrink:0 }}>Agregar</button>
+                          <button onClick={()=>setShowAddForm(null)} style={{ background:"none",border:"1px solid #e5e5e5",borderRadius:7,padding:"8px 10px",cursor:"pointer",color:"#a3a3a3",fontSize:12,flexShrink:0 }}>✕</button>
+                        </div>
+                      </div>)
+                      :<div style={{ padding:"6px 14px",borderTop:"1px solid #f5f5f5" }}>
+                        <button onClick={()=>setShowAddForm(cat)} style={{ fontSize:10,color:"#6366f1",background:"none",border:"none",cursor:"pointer",fontFamily:"'Sora',sans-serif",padding:0,display:"flex",alignItems:"center",gap:4 }}>
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                          Agregar producto
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               );
@@ -539,6 +625,7 @@ function InventarioCM({ user, records, onSaved, conn }) {
   const sede = getCMSede(user.email);
   const [tab, setTab] = useState("registrar");
   const latestMap = useMemo(()=>buildLatestMap(records),[records]);
+  const trendMap  = useMemo(()=>buildTrendMap(records),[records]);
 
   if (!sede) {
     return (
@@ -569,7 +656,7 @@ function InventarioCM({ user, records, onSaved, conn }) {
         </div>
       </div>
       <div style={{ flex:1,overflowY:"auto",padding:"20px 24px" }}>
-        {tab==="registrar"&&<FormRegistro sede={sede} latestMap={latestMap} user={user} conn={conn} onSaved={onSaved}/>}
+        {tab==="registrar"&&<FormRegistro sede={sede} latestMap={latestMap} trendMap={trendMap} user={user} conn={conn} onSaved={onSaved}/>}
         {tab==="historial"&&<HistorialSede sede={sede} records={records} latestMap={latestMap}/>}
       </div>
     </div>

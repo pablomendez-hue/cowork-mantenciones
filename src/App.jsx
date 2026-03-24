@@ -3,6 +3,7 @@ import { COLUMNS, COL_IDS, CATEGORIES, PRIORITY, SEDES, USERS, ROLE_LABELS, ROLE
 import { isConfigured, fetchAllTickets, createTicket, updateTicket, deleteTicket, sendNotification, testConnection } from "./sheets.js";
 import { fetchConfig, upsertConfig, parseSedeCM, parseExtraUsers, parseRoleOverrides } from "./config_sheets.js";
 import Inventario from "./Inventario.jsx";
+import InventarioStats from "./InventarioStats.jsx";
 
 const DEMO = [
   {id:1,num:1,category:"Servicio Adicional",desc:"Instalacion tomacorrientes piso 7",sede:"Suecia",priority:"Alta",stage:"finalizado",by:"Ana Rondon",date:"2026-01-21",provider:"Servicios IA SPA",amount:642600,payment:"100",closedAt:"2026-02-01",execDate:"2026-01-28",comments:[],assignee:"Luis Morales"},
@@ -211,7 +212,7 @@ function NewModal({onClose,onSubmit,saving,user}){
 export default function App(){
   const[user,setUser]=useState(getCurUser());
   const[items,setItems]=useState([]);const[sel,setSel]=useState(null);const[showNew,setShowNew]=useState(false);
-  const[showDash,setShowDash]=useState(false);const[showInv,setShowInv]=useState(false);const[dragCol,setDragCol]=useState(null);
+  const[showDash,setShowDash]=useState(false);const[showInv,setShowInv]=useState(false);const[statsSub,setStatsSub]=useState("insumos");const[dragCol,setDragCol]=useState(null);
   const[search,setSearch]=useState("");const[fCat,setFCat]=useState("");const[fPri,setFPri]=useState("");
   const[loading,setLoading]=useState(true);const[saving,setSaving]=useState(false);
   const[conn,setConn]=useState(false);const[err,setErr]=useState(null);
@@ -276,7 +277,7 @@ export default function App(){
         <div style={{flex:1,padding:"8px 6px",display:"flex",flexDirection:"column",gap:2}}>
           <SBItem id="mant" icon="🔧" label="Mant."/>
           <SBItem id="inv"  icon="📦" label="Inv."/>
-          {user.role==="admin"&&<SBItem id="dash" icon="📊" label="Stats"/>}
+          {(user.role==="admin"||user.role==="ops")&&<SBItem id="dash" icon="📊" label="Stats"/>}
         </div>
         <div style={{padding:"8px 6px 16px",borderTop:"1px solid #f5f5f5"}}>
           <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:6}}>
@@ -308,7 +309,7 @@ export default function App(){
         {/* Content */}
         <div style={{flex:1,display:"flex",minHeight:0,overflow:"hidden"}}>
           {tab==="inv"&&<Inventario user={user} conn={conn}/>}
-          {tab==="dash"&&<Dashboard items={items} onBack={()=>setTab("mant")} conn={conn}/>}
+          {tab==="dash"&&(statsSub==="mant"?<Dashboard items={items} onBack={()=>setStatsSub("insumos")} conn={conn}/>:<div style={{flex:1,display:"flex",flexDirection:"column",minHeight:0}}><div style={{padding:"8px 20px",borderBottom:"1px solid #f0f0f0",display:"flex",gap:4,flexShrink:0}}><button onClick={()=>setStatsSub("insumos")} style={{padding:"5px 13px",fontSize:11,cursor:"pointer",borderRadius:6,fontFamily:"'Sora',sans-serif",border:"none",background:"#1a1a1a",color:"#fff",fontWeight:500}}>Insumos</button><button onClick={()=>setStatsSub("mant")} style={{padding:"5px 13px",fontSize:11,cursor:"pointer",borderRadius:6,fontFamily:"'Sora',sans-serif",border:"1px solid #e5e5e5",background:"#fff",color:"#737373",fontWeight:400}}>Mantenciones</button></div><InventarioStats conn={conn}/></div>)}
           {tab==="mant"&&<div style={{flex:1,display:"flex",gap:12,padding:"16px 20px",overflowX:"auto",minHeight:0}}>
             {COLUMNS.filter(c=>c.id!=="finalizado").map(col=><Col key={col.id} col={col} items={filt.filter(i=>i.stage===col.id).sort((a,b)=>{const o={Urgente:0,Alta:1,Media:2,Baja:3};return o[a.priority]-o[b.priority]})} onOpen={setSel} onDragStart={()=>{}} onDrop={handleDrop} dragOverCol={dragCol} setDragOverCol={setDragCol}/>)}
             <Col col={{id:"finalizado",label:"Finalizado - Pendiente",icon:"\u23f3",sub:"Pago pendiente"}} items={filt.filter(i=>i.stage==="finalizado"&&i.payment!=="100").sort((a,b)=>{const o={Urgente:0,Alta:1,Media:2,Baja:3};return o[a.priority]-o[b.priority]})} onOpen={setSel} onDragStart={()=>{}} onDrop={handleDrop} dragOverCol={dragCol} setDragOverCol={setDragCol}/>
