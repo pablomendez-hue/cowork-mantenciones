@@ -241,37 +241,68 @@ export default function App(){
   const cls=items.filter(i=>i.closedAt);const avg=cls.length?Math.round(cls.map(i=>daysAgo(i.date)-daysAgo(i.closedAt)).reduce((a,b)=>a+b,0)/cls.length):0;
   if(loading)return<div style={{fontFamily:"'Sora',sans-serif",display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",color:"#a3a3a3",fontSize:14}}>Cargando...</div>;
   const rc=ROLE_COLORS[user.role];
+  const tab=showInv?"inv":showDash?"dash":"mant";
+  const setTab=t=>{setShowInv(t==="inv");setShowDash(t==="dash")};
+  const SBItem=({id,icon,label})=>{
+    const active=tab===id;
+    return(<button onClick={()=>setTab(id)} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:4,padding:"12px 8px",border:"none",background:"none",cursor:"pointer",borderRadius:8,width:"100%",transition:"background 0.1s",color:active?"#1a1a1a":"#b3b3b3",fontFamily:"'Sora',sans-serif",position:"relative"}} onMouseEnter={e=>{if(!active)e.currentTarget.style.background="#f5f5f5"}} onMouseLeave={e=>e.currentTarget.style.background="none"}>
+      {active&&<span style={{position:"absolute",left:0,top:"20%",bottom:"20%",width:3,background:"#1a1a1a",borderRadius:"0 3px 3px 0"}}/>}
+      <span style={{fontSize:16}}>{icon}</span>
+      <span style={{fontSize:9,fontWeight:active?600:400,textTransform:"uppercase",letterSpacing:"0.04em"}}>{label}</span>
+    </button>);
+  };
   return(
-    <div style={{fontFamily:"'Sora',sans-serif",background:"#fff",color:"#1a1a1a",minHeight:"100vh",fontSize:13,display:"flex",flexDirection:"column"}}>
+    <div style={{fontFamily:"'Sora',sans-serif",background:"#fff",color:"#1a1a1a",height:"100vh",fontSize:13,display:"flex",overflow:"hidden"}}>
       <style>{CSS}</style>
       {err&&<div style={{position:"fixed",top:16,right:16,background:"#fef2f2",border:"1px solid #fecaca",color:"#dc2626",padding:"10px 16px",borderRadius:8,fontSize:12,zIndex:9999}}>{err}</div>}
-      <div style={{padding:"12px 24px",borderBottom:"1px solid #f0f0f0",display:"flex",alignItems:"center",justifyContent:"space-between",flexShrink:0,background:"#fff",position:"sticky",top:0,zIndex:50}}>
-        <div style={{display:"flex",alignItems:"center",gap:16}}>
-          <div><span style={{fontSize:14,fontWeight:700}}>Cowork LABS</span><span style={{fontSize:11,color:"#b3b3b3",marginLeft:8}}>Mantenciones</span></div>
-          <div style={{display:"flex",alignItems:"center",gap:4,padding:"3px 8px",borderRadius:99,background:conn?"#f0fdf4":"#fefce8",border:conn?"1px solid #bbf7d0":"1px solid #fef08a"}}><span style={{width:6,height:6,borderRadius:99,background:conn?"#22c55e":"#eab308"}}/><span style={{fontSize:9,fontWeight:500,color:conn?"#16a34a":"#a16207"}}>{conn?"Sheets":"Demo"}</span></div>
-          <div style={{display:"flex",gap:14,borderLeft:"1px solid #f0f0f0",paddingLeft:16}}>{[{l:"Activos",v:act},{l:"Cotizado",v:fmt(totC)},{l:"Prom.",v:avg+"d"}].map(s=><div key={s.l} style={{display:"flex",alignItems:"baseline",gap:4}}><span style={{fontSize:14,fontWeight:700,fontFamily:"'JetBrains Mono',monospace"}}>{s.v}</span><span style={{fontSize:9,color:"#b3b3b3",fontWeight:500,textTransform:"uppercase"}}>{s.l}</span></div>)}</div>
+      {/* ── Sidebar ── */}
+      <div style={{width:72,borderRight:"1px solid #f0f0f0",display:"flex",flexDirection:"column",flexShrink:0,background:"#fff"}}>
+        <div style={{padding:"16px 0 8px",textAlign:"center",borderBottom:"1px solid #f5f5f5"}}>
+          <div style={{fontSize:13,fontWeight:800,color:"#1a1a1a",letterSpacing:"-0.02em"}}>CW</div>
         </div>
-        <div style={{display:"flex",alignItems:"center",gap:8}}>
-          {!showDash&&<><div style={{position:"relative"}}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#b3b3b3" strokeWidth="2" style={{position:"absolute",left:9,top:9}}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar..." style={{...I,paddingLeft:28,width:170,padding:"6px 10px 6px 28px",fontSize:11}}/></div>
-          <div style={{display:"flex",gap:3}}>
-            <button onClick={()=>{setFCat("");setFPri("")}} style={{...FB,background:!fCat&&!fPri?"#1a1a1a":"#fff",color:!fCat&&!fPri?"#fff":"#999",border:!fCat&&!fPri?"1px solid #1a1a1a":"1px solid #e5e5e5"}}>Todos</button>
-            {Object.entries(CATEGORIES).map(([n,c])=><button key={n} onClick={()=>{setFCat(fCat===n?"":n);setFPri("")}} style={{...FB,background:fCat===n?c.bg:"#fff",color:fCat===n?c.color:"#b3b3b3",border:fCat===n?"1px solid "+c.border:"1px solid #e5e5e5"}}>{n==="Aire Acondicionado"?"A/C":n==="Servicio Adicional"?"SA":"MNT"}</button>)}
-            <span style={{width:1,background:"#e5e5e5",margin:"0 2px"}}/>
-            {Object.entries(PRIORITY).map(([n,p])=><button key={n} onClick={()=>{setFPri(fPri===n?"":n);setFCat("")}} style={{...FB,background:fPri===n?"#1a1a1a":"#fff",color:fPri===n?"#fff":p.color,border:fPri===n?"1px solid #1a1a1a":"1px solid #e5e5e5",display:"flex",alignItems:"center",gap:3}}><span style={{width:5,height:5,borderRadius:99,background:p.dot}}/>{n.slice(0,3)}</button>)}
+        <div style={{flex:1,padding:"8px 6px",display:"flex",flexDirection:"column",gap:2}}>
+          <SBItem id="mant" icon="🔧" label="Mant."/>
+          <SBItem id="inv"  icon="📦" label="Inv."/>
+          {user.role==="admin"&&<SBItem id="dash" icon="📊" label="Stats"/>}
+        </div>
+        <div style={{padding:"8px 6px 16px",borderTop:"1px solid #f5f5f5"}}>
+          <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:6}}>
+            <div style={{display:"flex",alignItems:"center",gap:4,padding:"2px 6px",borderRadius:99,background:conn?"#f0fdf4":"#fefce8",border:conn?"1px solid #bbf7d0":"1px solid #fef08a"}}><span style={{width:5,height:5,borderRadius:99,background:conn?"#22c55e":"#eab308"}}/></div>
+            <div style={{width:30,height:30,borderRadius:99,background:rc+"20",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:600,color:rc,cursor:"pointer"}} title={user.name}>{user.name.charAt(0)}</div>
+            <button onClick={()=>{logoutUser();setUser(null)}} style={{background:"none",border:"none",cursor:"pointer",color:"#d4d4d4",padding:2}} title="Salir"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></button>
           </div>
-          <button onClick={()=>setShowNew(true)} style={{...BP,padding:"6px 14px",fontSize:11}}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Nuevo</button></>}
-          <NotifBell user={user}/>
-          <button onClick={()=>{setShowInv(!showInv);setShowDash(false)}} style={{...(showInv?BP:BD),padding:"6px 14px",fontSize:11}} title="Inventario"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={showInv?"#fff":"currentColor"} strokeWidth="2"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg> Inventario</button>
-          {user.role==="admin"&&<button onClick={()=>{setShowDash(!showDash);setShowInv(false)}} style={{...showDash?BP:BD,padding:"6px 14px",fontSize:11}} title="Dashboard"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={showDash?"#fff":"currentColor"} strokeWidth="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg></button>}
-          <div style={{display:"flex",alignItems:"center",gap:6,paddingLeft:8,borderLeft:"1px solid #f0f0f0"}}><div style={{width:28,height:28,borderRadius:99,background:rc+"20",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:600,color:rc}}>{user.name.charAt(0)}</div><div><div style={{fontSize:11,fontWeight:500}}>{user.name.split(" ")[0]}</div><div style={{fontSize:9,color:rc,fontWeight:500}}>{ROLE_LABELS[user.role]}</div></div><button onClick={()=>{logoutUser();setUser(null)}} style={{background:"none",border:"none",cursor:"pointer",color:"#d4d4d4",padding:2}}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></button></div>
         </div>
       </div>
-      {showInv?<Inventario user={user} conn={conn}/>:showDash?<Dashboard items={items} onBack={()=>setShowDash(false)}/>:
-      <div style={{flex:1,display:"flex",gap:12,padding:"16px 24px",overflowX:"auto",minHeight:0}}>
-        {COLUMNS.filter(c=>c.id!=="finalizado").map(col=><Col key={col.id} col={col} items={filt.filter(i=>i.stage===col.id).sort((a,b)=>{const o={Urgente:0,Alta:1,Media:2,Baja:3};return o[a.priority]-o[b.priority]})} onOpen={setSel} onDragStart={()=>{}} onDrop={handleDrop} dragOverCol={dragCol} setDragOverCol={setDragCol}/>)}
-        <Col col={{id:"finalizado",label:"Finalizado - Pendiente",icon:"\u23f3",sub:"Pago pendiente"}} items={filt.filter(i=>i.stage==="finalizado"&&i.payment!=="100").sort((a,b)=>{const o={Urgente:0,Alta:1,Media:2,Baja:3};return o[a.priority]-o[b.priority]})} onOpen={setSel} onDragStart={()=>{}} onDrop={handleDrop} dragOverCol={dragCol} setDragOverCol={setDragCol}/>
-        <div style={{opacity:0.45,flex:1,minWidth:240,maxWidth:340,display:"flex"}}><Col col={{id:"finalizado",label:"Finalizado - Pagado",icon:"\u2705",sub:"100% pagado"}} items={filt.filter(i=>i.stage==="finalizado"&&i.payment==="100").sort((a,b)=>{const o={Urgente:0,Alta:1,Media:2,Baja:3};return o[a.priority]-o[b.priority]})} onOpen={setSel} onDragStart={()=>{}} onDrop={handleDrop} dragOverCol={dragCol} setDragOverCol={setDragCol}/></div>
-      </div>}
+      {/* ── Main ── */}
+      <div style={{flex:1,display:"flex",flexDirection:"column",minWidth:0,overflow:"hidden"}}>
+        {/* Top bar (only for Mantenciones) */}
+        {tab==="mant"&&<div style={{padding:"10px 20px",borderBottom:"1px solid #f0f0f0",display:"flex",alignItems:"center",justifyContent:"space-between",flexShrink:0,background:"#fff"}}>
+          <div style={{display:"flex",alignItems:"center",gap:14}}>
+            <div style={{display:"flex",gap:14}}>{[{l:"Activos",v:act},{l:"Cotizado",v:fmt(totC)},{l:"Prom.",v:avg+"d"}].map(s=><div key={s.l} style={{display:"flex",alignItems:"baseline",gap:4}}><span style={{fontSize:14,fontWeight:700,fontFamily:"'JetBrains Mono',monospace"}}>{s.v}</span><span style={{fontSize:9,color:"#b3b3b3",fontWeight:500,textTransform:"uppercase"}}>{s.l}</span></div>)}</div>
+          </div>
+          <div style={{display:"flex",alignItems:"center",gap:8}}>
+            <div style={{position:"relative"}}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#b3b3b3" strokeWidth="2" style={{position:"absolute",left:9,top:9}}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar..." style={{...I,paddingLeft:28,width:160,padding:"6px 10px 6px 28px",fontSize:11}}/></div>
+            <div style={{display:"flex",gap:3}}>
+              <button onClick={()=>{setFCat("");setFPri("")}} style={{...FB,background:!fCat&&!fPri?"#1a1a1a":"#fff",color:!fCat&&!fPri?"#fff":"#999",border:!fCat&&!fPri?"1px solid #1a1a1a":"1px solid #e5e5e5"}}>Todos</button>
+              {Object.entries(CATEGORIES).map(([n,c])=><button key={n} onClick={()=>{setFCat(fCat===n?"":n);setFPri("")}} style={{...FB,background:fCat===n?c.bg:"#fff",color:fCat===n?c.color:"#b3b3b3",border:fCat===n?"1px solid "+c.border:"1px solid #e5e5e5"}}>{n==="Aire Acondicionado"?"A/C":n==="Servicio Adicional"?"SA":"MNT"}</button>)}
+              <span style={{width:1,background:"#e5e5e5",margin:"0 2px"}}/>
+              {Object.entries(PRIORITY).map(([n,p])=><button key={n} onClick={()=>{setFPri(fPri===n?"":n);setFCat("")}} style={{...FB,background:fPri===n?"#1a1a1a":"#fff",color:fPri===n?"#fff":p.color,border:fPri===n?"1px solid #1a1a1a":"1px solid #e5e5e5",display:"flex",alignItems:"center",gap:3}}><span style={{width:5,height:5,borderRadius:99,background:p.dot}}/>{n.slice(0,3)}</button>)}
+            </div>
+            <button onClick={()=>setShowNew(true)} style={{...BP,padding:"6px 14px",fontSize:11}}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Nuevo</button>
+            <NotifBell user={user}/>
+          </div>
+        </div>}
+        {/* Content */}
+        <div style={{flex:1,display:"flex",minHeight:0,overflow:"hidden"}}>
+          {tab==="inv"&&<Inventario user={user} conn={conn}/>}
+          {tab==="dash"&&<Dashboard items={items} onBack={()=>setTab("mant")}/>}
+          {tab==="mant"&&<div style={{flex:1,display:"flex",gap:12,padding:"16px 20px",overflowX:"auto",minHeight:0}}>
+            {COLUMNS.filter(c=>c.id!=="finalizado").map(col=><Col key={col.id} col={col} items={filt.filter(i=>i.stage===col.id).sort((a,b)=>{const o={Urgente:0,Alta:1,Media:2,Baja:3};return o[a.priority]-o[b.priority]})} onOpen={setSel} onDragStart={()=>{}} onDrop={handleDrop} dragOverCol={dragCol} setDragOverCol={setDragCol}/>)}
+            <Col col={{id:"finalizado",label:"Finalizado - Pendiente",icon:"\u23f3",sub:"Pago pendiente"}} items={filt.filter(i=>i.stage==="finalizado"&&i.payment!=="100").sort((a,b)=>{const o={Urgente:0,Alta:1,Media:2,Baja:3};return o[a.priority]-o[b.priority]})} onOpen={setSel} onDragStart={()=>{}} onDrop={handleDrop} dragOverCol={dragCol} setDragOverCol={setDragCol}/>
+            <div style={{opacity:0.45,flex:1,minWidth:240,maxWidth:340,display:"flex"}}><Col col={{id:"finalizado",label:"Finalizado - Pagado",icon:"\u2705",sub:"100% pagado"}} items={filt.filter(i=>i.stage==="finalizado"&&i.payment==="100").sort((a,b)=>{const o={Urgente:0,Alta:1,Media:2,Baja:3};return o[a.priority]-o[b.priority]})} onOpen={setSel} onDragStart={()=>{}} onDrop={handleDrop} dragOverCol={dragCol} setDragOverCol={setDragCol}/></div>
+          </div>}
+        </div>
+      </div>
       {showNew&&<NewModal onClose={()=>setShowNew(false)} onSubmit={handleNew} saving={saving} user={user}/>}
       {selD&&<Detail item={selD} onClose={()=>setSel(null)} onUpdate={handleUpd} onDelete={handleDel} saving={saving} user={user}/>}
     </div>
