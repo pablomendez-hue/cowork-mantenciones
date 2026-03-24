@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { COLUMNS, COL_IDS, CATEGORIES, PRIORITY, SEDES, USERS, ROLE_LABELS, ROLE_COLORS, NOTIFY_EMAILS, fmt, fdate, daysAgo, today } from "./constants.js";
 import { isConfigured, fetchAllTickets, createTicket, updateTicket, deleteTicket, sendNotification, testConnection } from "./sheets.js";
+import Inventario from "./Inventario.jsx";
 
 const DEMO = [
   {id:1,num:1,category:"Servicio Adicional",desc:"Instalacion tomacorrientes piso 7",sede:"Suecia",priority:"Alta",stage:"finalizado",by:"Ana Rondon",date:"2026-01-21",provider:"Servicios IA SPA",amount:642600,payment:"100",closedAt:"2026-02-01",execDate:"2026-01-28",comments:[],assignee:"Luis Morales"},
@@ -197,7 +198,7 @@ function NewModal({onClose,onSubmit,saving,user}){
 export default function App(){
   const[user,setUser]=useState(getCurUser());
   const[items,setItems]=useState([]);const[sel,setSel]=useState(null);const[showNew,setShowNew]=useState(false);
-  const[showDash,setShowDash]=useState(false);const[dragCol,setDragCol]=useState(null);
+  const[showDash,setShowDash]=useState(false);const[showInv,setShowInv]=useState(false);const[dragCol,setDragCol]=useState(null);
   const[search,setSearch]=useState("");const[fCat,setFCat]=useState("");const[fPri,setFPri]=useState("");
   const[loading,setLoading]=useState(true);const[saving,setSaving]=useState(false);
   const[conn,setConn]=useState(false);const[err,setErr]=useState(null);
@@ -260,11 +261,12 @@ export default function App(){
           </div>
           <button onClick={()=>setShowNew(true)} style={{...BP,padding:"6px 14px",fontSize:11}}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Nuevo</button></>}
           <NotifBell user={user}/>
-          {user.role==="admin"&&<button onClick={()=>setShowDash(!showDash)} style={{...showDash?BP:BD,padding:"6px 14px",fontSize:11}} title="Dashboard"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={showDash?"#fff":"currentColor"} strokeWidth="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg></button>}
+          <button onClick={()=>{setShowInv(!showInv);setShowDash(false)}} style={{...(showInv?BP:BD),padding:"6px 14px",fontSize:11}} title="Inventario"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={showInv?"#fff":"currentColor"} strokeWidth="2"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg> Inventario</button>
+          {user.role==="admin"&&<button onClick={()=>{setShowDash(!showDash);setShowInv(false)}} style={{...showDash?BP:BD,padding:"6px 14px",fontSize:11}} title="Dashboard"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={showDash?"#fff":"currentColor"} strokeWidth="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg></button>}
           <div style={{display:"flex",alignItems:"center",gap:6,paddingLeft:8,borderLeft:"1px solid #f0f0f0"}}><div style={{width:28,height:28,borderRadius:99,background:rc+"20",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:600,color:rc}}>{user.name.charAt(0)}</div><div><div style={{fontSize:11,fontWeight:500}}>{user.name.split(" ")[0]}</div><div style={{fontSize:9,color:rc,fontWeight:500}}>{ROLE_LABELS[user.role]}</div></div><button onClick={()=>{logoutUser();setUser(null)}} style={{background:"none",border:"none",cursor:"pointer",color:"#d4d4d4",padding:2}}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></button></div>
         </div>
       </div>
-      {showDash?<Dashboard items={items} onBack={()=>setShowDash(false)}/>:
+      {showInv?<Inventario user={user} conn={conn}/>:showDash?<Dashboard items={items} onBack={()=>setShowDash(false)}/>:
       <div style={{flex:1,display:"flex",gap:12,padding:"16px 24px",overflowX:"auto",minHeight:0}}>
         {COLUMNS.filter(c=>c.id!=="finalizado").map(col=><Col key={col.id} col={col} items={filt.filter(i=>i.stage===col.id).sort((a,b)=>{const o={Urgente:0,Alta:1,Media:2,Baja:3};return o[a.priority]-o[b.priority]})} onOpen={setSel} onDragStart={()=>{}} onDrop={handleDrop} dragOverCol={dragCol} setDragOverCol={setDragCol}/>)}
         <Col col={{id:"finalizado",label:"Finalizado - Pendiente",icon:"\u23f3",sub:"Pago pendiente"}} items={filt.filter(i=>i.stage==="finalizado"&&i.payment!=="100").sort((a,b)=>{const o={Urgente:0,Alta:1,Media:2,Baja:3};return o[a.priority]-o[b.priority]})} onOpen={setSel} onDragStart={()=>{}} onDrop={handleDrop} dragOverCol={dragCol} setDragOverCol={setDragCol}/>
