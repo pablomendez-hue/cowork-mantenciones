@@ -1,0 +1,2234 @@
+[
+  {
+    "sede": "ABEDULES",
+    "proveedor": "Aseo",
+    "producto": "Aceite de oliva",
+    "min_stock": 2
+  },
+  {
+    "sede": "ABEDULES",
+    "proveedor": "Aseo",
+    "producto": "Aceto",
+    "min_stock": 1
+  },
+  {
+    "sede": "ABEDULES",
+    "proveedor": "Aseo",
+    "producto": "Aerosol de aroma",
+    "min_stock": 5
+  },
+  {
+    "sede": "ABEDULES",
+    "proveedor": "Aseo",
+    "producto": "Bolsas L",
+    "min_stock": 3
+  },
+  {
+    "sede": "ABEDULES",
+    "proveedor": "Aseo",
+    "producto": "Bolsas M",
+    "min_stock": 4
+  },
+  {
+    "sede": "ABEDULES",
+    "proveedor": "Aseo",
+    "producto": "Bolsas S",
+    "min_stock": 2
+  },
+  {
+    "sede": "ABEDULES",
+    "proveedor": "Aseo",
+    "producto": "Café instantaneao",
+    "min_stock": 1
+  },
+  {
+    "sede": "ABEDULES",
+    "proveedor": "Aseo",
+    "producto": "Cif en crema",
+    "min_stock": 2
+  },
+  {
+    "sede": "ABEDULES",
+    "proveedor": "Aseo",
+    "producto": "Cloro Gel",
+    "min_stock": 2
+  },
+  {
+    "sede": "ABEDULES",
+    "proveedor": "Aseo",
+    "producto": "Esponja 4U",
+    "min_stock": 1
+  },
+  {
+    "sede": "ABEDULES",
+    "proveedor": "Aseo",
+    "producto": "Guantes",
+    "min_stock": 5
+  },
+  {
+    "sede": "ABEDULES",
+    "proveedor": "Aseo",
+    "producto": "Jabón de mano",
+    "min_stock": 1
+  },
+  {
+    "sede": "ABEDULES",
+    "proveedor": "Aseo",
+    "producto": "Lavaloza",
+    "min_stock": 1
+  },
+  {
+    "sede": "ABEDULES",
+    "proveedor": "Aseo",
+    "producto": "Limpia Piso",
+    "min_stock": 1
+  },
+  {
+    "sede": "ABEDULES",
+    "proveedor": "Aseo",
+    "producto": "Lustramueble",
+    "min_stock": 1
+  },
+  {
+    "sede": "ABEDULES",
+    "proveedor": "Aseo",
+    "producto": "Mopa Redonda",
+    "min_stock": 2
+  },
+  {
+    "sede": "ABEDULES",
+    "proveedor": "Aseo",
+    "producto": "Papel interfoliado",
+    "min_stock": 1
+  },
+  {
+    "sede": "ABEDULES",
+    "proveedor": "Aseo",
+    "producto": "Paño Verde",
+    "min_stock": 1
+  },
+  {
+    "sede": "ABEDULES",
+    "proveedor": "Aseo",
+    "producto": "Paños Amarillo",
+    "min_stock": 1
+  },
+  {
+    "sede": "ABEDULES",
+    "proveedor": "Aseo",
+    "producto": "Paños Azul",
+    "min_stock": 1
+  },
+  {
+    "sede": "ABEDULES",
+    "proveedor": "Aseo",
+    "producto": "Poet",
+    "min_stock": 1
+  },
+  {
+    "sede": "ABEDULES",
+    "proveedor": "Aseo",
+    "producto": "Repuesto avion",
+    "min_stock": 1
+  },
+  {
+    "sede": "ABEDULES",
+    "proveedor": "Aseo",
+    "producto": "Vinagre",
+    "min_stock": 3
+  },
+  {
+    "sede": "ABEDULES",
+    "proveedor": "Cafeteria",
+    "producto": "Cafe Granulado",
+    "min_stock": 1
+  },
+  {
+    "sede": "ABEDULES",
+    "proveedor": "Cafeteria",
+    "producto": "Endulzante",
+    "min_stock": 1
+  },
+  {
+    "sede": "ABEDULES",
+    "proveedor": "Cafeteria",
+    "producto": "Leche en polvo",
+    "min_stock": 2
+  },
+  {
+    "sede": "ABEDULES",
+    "proveedor": "Cafeteria",
+    "producto": "Leche liquida",
+    "min_stock": 1
+  },
+  {
+    "sede": "ABEDULES",
+    "proveedor": "Cafeteria",
+    "producto": "Papel Higienico (UN)",
+    "min_stock": 3
+  },
+  {
+    "sede": "ABEDULES",
+    "proveedor": "Cafeteria",
+    "producto": "Resma Papel Fotocopia (UN)",
+    "min_stock": 1
+  },
+  {
+    "sede": "ABEDULES",
+    "proveedor": "Cafeteria",
+    "producto": "Servilletas",
+    "min_stock": 3
+  },
+  {
+    "sede": "ABEDULES",
+    "proveedor": "Cafeteria",
+    "producto": "Toalla de Papel Jumbo (UN)",
+    "min_stock": 1
+  },
+  {
+    "sede": "ABEDULES",
+    "proveedor": "Cafeteria",
+    "producto": "Vainilla",
+    "min_stock": 1
+  },
+  {
+    "sede": "ABEDULES",
+    "proveedor": "Coporate Coffe",
+    "producto": "Cafe Grano (KG)",
+    "min_stock": 1
+  },
+  {
+    "sede": "ALTO EL GOLF",
+    "proveedor": "Aseo",
+    "producto": "Bolsas Basura 50x70",
+    "min_stock": 8
+  },
+  {
+    "sede": "ALTO EL GOLF",
+    "proveedor": "Aseo",
+    "producto": "Bolsas Basura 70x90",
+    "min_stock": 1
+  },
+  {
+    "sede": "ALTO EL GOLF",
+    "proveedor": "Aseo",
+    "producto": "Bolsas Basura 80x110",
+    "min_stock": 4
+  },
+  {
+    "sede": "ALTO EL GOLF",
+    "proveedor": "Aseo",
+    "producto": "Cloro Gel",
+    "min_stock": 1
+  },
+  {
+    "sede": "ALTO EL GOLF",
+    "proveedor": "Aseo",
+    "producto": "Esponja 4U",
+    "min_stock": 2
+  },
+  {
+    "sede": "ALTO EL GOLF",
+    "proveedor": "Aseo",
+    "producto": "Limpia Piso",
+    "min_stock": 1
+  },
+  {
+    "sede": "ALTO EL GOLF",
+    "proveedor": "Aseo",
+    "producto": "Mopa Redonda",
+    "min_stock": 1
+  },
+  {
+    "sede": "ALTO EL GOLF",
+    "proveedor": "Cafe Caribe",
+    "producto": "Cafe Grano (KG)",
+    "min_stock": 3
+  },
+  {
+    "sede": "ALTO EL GOLF",
+    "proveedor": "Cafeteria",
+    "producto": "Endulzante",
+    "min_stock": 1
+  },
+  {
+    "sede": "ALTO EL GOLF",
+    "proveedor": "Cafeteria",
+    "producto": "Leche liquida",
+    "min_stock": 4
+  },
+  {
+    "sede": "ALTO EL GOLF",
+    "proveedor": "Cafeteria",
+    "producto": "Papel Higienico (UN)",
+    "min_stock": 7
+  },
+  {
+    "sede": "ALTO EL GOLF",
+    "proveedor": "Cafeteria",
+    "producto": "Resma Papel Fotocopia (UN)",
+    "min_stock": 2
+  },
+  {
+    "sede": "ALTO EL GOLF",
+    "proveedor": "Cafeteria",
+    "producto": "Servilletas",
+    "min_stock": 2
+  },
+  {
+    "sede": "ALTO EL GOLF",
+    "proveedor": "Cafeteria",
+    "producto": "Toalla de Papel Jumbo (UN)",
+    "min_stock": 3
+  },
+  {
+    "sede": "APOQUINDO",
+    "proveedor": "Aseo",
+    "producto": "Bolsas Basura 50x70",
+    "min_stock": 6
+  },
+  {
+    "sede": "APOQUINDO",
+    "proveedor": "Aseo",
+    "producto": "Bolsas Basura 70x90",
+    "min_stock": 2
+  },
+  {
+    "sede": "APOQUINDO",
+    "proveedor": "Aseo",
+    "producto": "Bolsas Basura 80x110",
+    "min_stock": 2
+  },
+  {
+    "sede": "APOQUINDO",
+    "proveedor": "Aseo",
+    "producto": "Cloro Gel",
+    "min_stock": 1
+  },
+  {
+    "sede": "APOQUINDO",
+    "proveedor": "Aseo",
+    "producto": "Esponja 4U",
+    "min_stock": 1
+  },
+  {
+    "sede": "APOQUINDO",
+    "proveedor": "Aseo",
+    "producto": "Limpia Piso",
+    "min_stock": 1
+  },
+  {
+    "sede": "APOQUINDO",
+    "proveedor": "Aseo",
+    "producto": "Mopa Redonda",
+    "min_stock": 1
+  },
+  {
+    "sede": "APOQUINDO",
+    "proveedor": "Cafe Caribe",
+    "producto": "Cafe Grano (KG)",
+    "min_stock": 3
+  },
+  {
+    "sede": "APOQUINDO",
+    "proveedor": "Cafeteria",
+    "producto": "Cafe Granulado",
+    "min_stock": 1
+  },
+  {
+    "sede": "APOQUINDO",
+    "proveedor": "Cafeteria",
+    "producto": "Endulzante",
+    "min_stock": 1
+  },
+  {
+    "sede": "APOQUINDO",
+    "proveedor": "Cafeteria",
+    "producto": "Leche liquida",
+    "min_stock": 5
+  },
+  {
+    "sede": "APOQUINDO",
+    "proveedor": "Cafeteria",
+    "producto": "Papel Higienico (UN)",
+    "min_stock": 5
+  },
+  {
+    "sede": "APOQUINDO",
+    "proveedor": "Cafeteria",
+    "producto": "Resma Papel Fotocopia (UN)",
+    "min_stock": 1
+  },
+  {
+    "sede": "APOQUINDO",
+    "proveedor": "Cafeteria",
+    "producto": "Servilletas",
+    "min_stock": 1
+  },
+  {
+    "sede": "APOQUINDO",
+    "proveedor": "Cafeteria",
+    "producto": "Toalla de Papel Jumbo (UN)",
+    "min_stock": 2
+  },
+  {
+    "sede": "CERRO EL PLOMO",
+    "proveedor": "Aseo",
+    "producto": "Ambientador",
+    "min_stock": 1
+  },
+  {
+    "sede": "CERRO EL PLOMO",
+    "proveedor": "Aseo",
+    "producto": "Atomizador Pistola",
+    "min_stock": 2
+  },
+  {
+    "sede": "CERRO EL PLOMO",
+    "proveedor": "Aseo",
+    "producto": "Bolsas Basura 50x70",
+    "min_stock": 11
+  },
+  {
+    "sede": "CERRO EL PLOMO",
+    "proveedor": "Aseo",
+    "producto": "Bolsas Basura 70x90",
+    "min_stock": 7
+  },
+  {
+    "sede": "CERRO EL PLOMO",
+    "proveedor": "Aseo",
+    "producto": "Bolsas Basura 80x110",
+    "min_stock": 5
+  },
+  {
+    "sede": "CERRO EL PLOMO",
+    "proveedor": "Aseo",
+    "producto": "Cif en crema",
+    "min_stock": 1
+  },
+  {
+    "sede": "CERRO EL PLOMO",
+    "proveedor": "Aseo",
+    "producto": "Cloro Gel",
+    "min_stock": 1
+  },
+  {
+    "sede": "CERRO EL PLOMO",
+    "proveedor": "Aseo",
+    "producto": "Esponja 4U",
+    "min_stock": 2
+  },
+  {
+    "sede": "CERRO EL PLOMO",
+    "proveedor": "Aseo",
+    "producto": "Jabon liquido",
+    "min_stock": 1
+  },
+  {
+    "sede": "CERRO EL PLOMO",
+    "proveedor": "Aseo",
+    "producto": "Lavaloza",
+    "min_stock": 1
+  },
+  {
+    "sede": "CERRO EL PLOMO",
+    "proveedor": "Aseo",
+    "producto": "Limpia Piso",
+    "min_stock": 1
+  },
+  {
+    "sede": "CERRO EL PLOMO",
+    "proveedor": "Aseo",
+    "producto": "Limpiador Antigrasa",
+    "min_stock": 1
+  },
+  {
+    "sede": "CERRO EL PLOMO",
+    "proveedor": "Aseo",
+    "producto": "Lustra muebles",
+    "min_stock": 1
+  },
+  {
+    "sede": "CERRO EL PLOMO",
+    "proveedor": "Aseo",
+    "producto": "Mopa Redonda",
+    "min_stock": 2
+  },
+  {
+    "sede": "CERRO EL PLOMO",
+    "proveedor": "Cafeteria",
+    "producto": "Aceite de oliva",
+    "min_stock": 1
+  },
+  {
+    "sede": "CERRO EL PLOMO",
+    "proveedor": "Cafeteria",
+    "producto": "Aceto Balsamico",
+    "min_stock": 1
+  },
+  {
+    "sede": "CERRO EL PLOMO",
+    "proveedor": "Cafeteria",
+    "producto": "Cafe Caribe Grano (KG)",
+    "min_stock": 3
+  },
+  {
+    "sede": "CERRO EL PLOMO",
+    "proveedor": "Cafeteria",
+    "producto": "Endulzante",
+    "min_stock": 1
+  },
+  {
+    "sede": "CERRO EL PLOMO",
+    "proveedor": "Cafeteria",
+    "producto": "Leche liquida",
+    "min_stock": 4
+  },
+  {
+    "sede": "CERRO EL PLOMO",
+    "proveedor": "Cafeteria",
+    "producto": "Papel Higienico (UN)",
+    "min_stock": 5
+  },
+  {
+    "sede": "CERRO EL PLOMO",
+    "proveedor": "Cafeteria",
+    "producto": "Resma Papel Fotocopia (UN)",
+    "min_stock": 1
+  },
+  {
+    "sede": "CERRO EL PLOMO",
+    "proveedor": "Cafeteria",
+    "producto": "Sal",
+    "min_stock": 1
+  },
+  {
+    "sede": "CERRO EL PLOMO",
+    "proveedor": "Cafeteria",
+    "producto": "Servilletas",
+    "min_stock": 5
+  },
+  {
+    "sede": "CERRO EL PLOMO",
+    "proveedor": "Cafeteria",
+    "producto": "Sucedaneo Limon",
+    "min_stock": 1
+  },
+  {
+    "sede": "CERRO EL PLOMO",
+    "proveedor": "Cafeteria",
+    "producto": "Te caja amarillo Lipton",
+    "min_stock": 1
+  },
+  {
+    "sede": "CERRO EL PLOMO",
+    "proveedor": "Cafeteria",
+    "producto": "Te caja negro supremo",
+    "min_stock": 1
+  },
+  {
+    "sede": "CERRO EL PLOMO",
+    "proveedor": "Cafeteria",
+    "producto": "Te caja surtidos",
+    "min_stock": 1
+  },
+  {
+    "sede": "CERRO EL PLOMO",
+    "proveedor": "Cafeteria",
+    "producto": "Toalla de Papel Jumbo (UN)",
+    "min_stock": 2
+  },
+  {
+    "sede": "CERRO EL PLOMO",
+    "proveedor": "Cafeteria",
+    "producto": "Vinagre",
+    "min_stock": 2
+  },
+  {
+    "sede": "CERRO EL PLOMO",
+    "proveedor": "Corporate Coffe",
+    "producto": "Azucar (UN)",
+    "min_stock": 1
+  },
+  {
+    "sede": "CERRO EL PLOMO",
+    "proveedor": "Corporate Coffe",
+    "producto": "Cafe Grano (KG)",
+    "min_stock": 2
+  },
+  {
+    "sede": "CERRO EL PLOMO",
+    "proveedor": "Corporate Coffe",
+    "producto": "Chocolate (KG)",
+    "min_stock": 4
+  },
+  {
+    "sede": "CERRO EL PLOMO",
+    "proveedor": "Corporate Coffe",
+    "producto": "Leche en polvo (KG)",
+    "min_stock": 24
+  },
+  {
+    "sede": "CERRO EL PLOMO",
+    "proveedor": "Corporate Coffe",
+    "producto": "Removerdores (UN)",
+    "min_stock": 3
+  },
+  {
+    "sede": "CERRO EL PLOMO",
+    "proveedor": "Corporate Coffe",
+    "producto": "Sucralosa (UN)",
+    "min_stock": 1
+  },
+  {
+    "sede": "CERRO EL PLOMO",
+    "proveedor": "Corporate Coffe",
+    "producto": "Te (KG)",
+    "min_stock": 2
+  },
+  {
+    "sede": "CERRO EL PLOMO",
+    "proveedor": "Corporate Coffe",
+    "producto": "Vainilla (KG)",
+    "min_stock": 20
+  },
+  {
+    "sede": "FLORIDA CENTER",
+    "proveedor": "Aseo",
+    "producto": "Bolsas Basura 50x70",
+    "min_stock": 5
+  },
+  {
+    "sede": "FLORIDA CENTER",
+    "proveedor": "Aseo",
+    "producto": "Bolsas Basura 70x90",
+    "min_stock": 2
+  },
+  {
+    "sede": "FLORIDA CENTER",
+    "proveedor": "Aseo",
+    "producto": "Bolsas Basura 80x110",
+    "min_stock": 6
+  },
+  {
+    "sede": "FLORIDA CENTER",
+    "proveedor": "Aseo",
+    "producto": "CIF",
+    "min_stock": 1
+  },
+  {
+    "sede": "FLORIDA CENTER",
+    "proveedor": "Aseo",
+    "producto": "Cloro Gel",
+    "min_stock": 1
+  },
+  {
+    "sede": "FLORIDA CENTER",
+    "proveedor": "Aseo",
+    "producto": "Desodorante Ambiental",
+    "min_stock": 5
+  },
+  {
+    "sede": "FLORIDA CENTER",
+    "proveedor": "Aseo",
+    "producto": "Esponja 4U",
+    "min_stock": 5
+  },
+  {
+    "sede": "FLORIDA CENTER",
+    "proveedor": "Aseo",
+    "producto": "Guantes Multiuso",
+    "min_stock": 2
+  },
+  {
+    "sede": "FLORIDA CENTER",
+    "proveedor": "Aseo",
+    "producto": "Igenix",
+    "min_stock": 2
+  },
+  {
+    "sede": "FLORIDA CENTER",
+    "proveedor": "Aseo",
+    "producto": "Lavalozas",
+    "min_stock": 1
+  },
+  {
+    "sede": "FLORIDA CENTER",
+    "proveedor": "Aseo",
+    "producto": "Limpia Piso",
+    "min_stock": 1
+  },
+  {
+    "sede": "FLORIDA CENTER",
+    "proveedor": "Aseo",
+    "producto": "Limpia vidrio",
+    "min_stock": 1
+  },
+  {
+    "sede": "FLORIDA CENTER",
+    "proveedor": "Aseo",
+    "producto": "Lustra Mueble",
+    "min_stock": 2
+  },
+  {
+    "sede": "FLORIDA CENTER",
+    "proveedor": "Aseo",
+    "producto": "Mopa Avión",
+    "min_stock": 1
+  },
+  {
+    "sede": "FLORIDA CENTER",
+    "proveedor": "Aseo",
+    "producto": "Mopa Redonda",
+    "min_stock": 1
+  },
+  {
+    "sede": "FLORIDA CENTER",
+    "proveedor": "Aseo",
+    "producto": "Paño Esponja",
+    "min_stock": 1
+  },
+  {
+    "sede": "FLORIDA CENTER",
+    "proveedor": "Aseo",
+    "producto": "Paños Multiuso Amarillo",
+    "min_stock": 1
+  },
+  {
+    "sede": "FLORIDA CENTER",
+    "proveedor": "Aseo",
+    "producto": "Paños Multiuso Azul",
+    "min_stock": 2
+  },
+  {
+    "sede": "FLORIDA CENTER",
+    "proveedor": "Aseo",
+    "producto": "Paños Multiuso Verde",
+    "min_stock": 1
+  },
+  {
+    "sede": "FLORIDA CENTER",
+    "proveedor": "Cafeteria",
+    "producto": "Aceite de Oliva",
+    "min_stock": 1
+  },
+  {
+    "sede": "FLORIDA CENTER",
+    "proveedor": "Cafeteria",
+    "producto": "Aceto Balsámico",
+    "min_stock": 1
+  },
+  {
+    "sede": "FLORIDA CENTER",
+    "proveedor": "Cafeteria",
+    "producto": "Azucar",
+    "min_stock": 1
+  },
+  {
+    "sede": "FLORIDA CENTER",
+    "proveedor": "Cafeteria",
+    "producto": "Cafe Grano (KG)",
+    "min_stock": 4
+  },
+  {
+    "sede": "FLORIDA CENTER",
+    "proveedor": "Cafeteria",
+    "producto": "Café soluble",
+    "min_stock": 1
+  },
+  {
+    "sede": "FLORIDA CENTER",
+    "proveedor": "Cafeteria",
+    "producto": "Endulzante",
+    "min_stock": 2
+  },
+  {
+    "sede": "FLORIDA CENTER",
+    "proveedor": "Cafeteria",
+    "producto": "Ensencia de Limón",
+    "min_stock": 1
+  },
+  {
+    "sede": "FLORIDA CENTER",
+    "proveedor": "Cafeteria",
+    "producto": "Leche Liquida",
+    "min_stock": 6
+  },
+  {
+    "sede": "FLORIDA CENTER",
+    "proveedor": "Cafeteria",
+    "producto": "Papel Higienico (UN)",
+    "min_stock": 1
+  },
+  {
+    "sede": "FLORIDA CENTER",
+    "proveedor": "Cafeteria",
+    "producto": "Removedores",
+    "min_stock": 3
+  },
+  {
+    "sede": "FLORIDA CENTER",
+    "proveedor": "Cafeteria",
+    "producto": "Servilletas",
+    "min_stock": 4
+  },
+  {
+    "sede": "FLORIDA CENTER",
+    "proveedor": "Cafeteria",
+    "producto": "Supremo de Hierbas",
+    "min_stock": 1
+  },
+  {
+    "sede": "FLORIDA CENTER",
+    "proveedor": "Cafeteria",
+    "producto": "Toalla de Papel Jumbo (UN)",
+    "min_stock": 2
+  },
+  {
+    "sede": "FLORIDA CENTER",
+    "proveedor": "Cafeteria",
+    "producto": "Té Negro",
+    "min_stock": 1
+  },
+  {
+    "sede": "FLORIDA CENTER",
+    "proveedor": "Cafeteria",
+    "producto": "Té Premium",
+    "min_stock": 1
+  },
+  {
+    "sede": "FLORIDA CENTER",
+    "proveedor": "Cafeteria",
+    "producto": "Vasos Polipapel",
+    "min_stock": 63
+  },
+  {
+    "sede": "FLORIDA CENTER",
+    "proveedor": "Cafeteria",
+    "producto": "Vinagre",
+    "min_stock": 1
+  },
+  {
+    "sede": "FLORIDA CENTER",
+    "proveedor": "Papeleria",
+    "producto": "Resma Papel Fotocopia (UN)",
+    "min_stock": 1
+  },
+  {
+    "sede": "ISIDORA",
+    "proveedor": "Aseo",
+    "producto": "Bolsas Basura 50x70",
+    "min_stock": 4
+  },
+  {
+    "sede": "ISIDORA",
+    "proveedor": "Aseo",
+    "producto": "Bolsas Basura 70x90",
+    "min_stock": 8
+  },
+  {
+    "sede": "ISIDORA",
+    "proveedor": "Aseo",
+    "producto": "Bolsas Basura 80x110",
+    "min_stock": 6
+  },
+  {
+    "sede": "ISIDORA",
+    "proveedor": "Aseo",
+    "producto": "Cloro Gel",
+    "min_stock": 1
+  },
+  {
+    "sede": "ISIDORA",
+    "proveedor": "Aseo",
+    "producto": "Esponja 4U",
+    "min_stock": 2
+  },
+  {
+    "sede": "ISIDORA",
+    "proveedor": "Aseo",
+    "producto": "Limpia Piso",
+    "min_stock": 1
+  },
+  {
+    "sede": "ISIDORA",
+    "proveedor": "Aseo",
+    "producto": "Mopa Redonda",
+    "min_stock": 1
+  },
+  {
+    "sede": "ISIDORA",
+    "proveedor": "Cafe Caribe",
+    "producto": "Cafe Grano (KG)",
+    "min_stock": 10
+  },
+  {
+    "sede": "ISIDORA",
+    "proveedor": "Cafeteria",
+    "producto": "Endulzante",
+    "min_stock": 1
+  },
+  {
+    "sede": "ISIDORA",
+    "proveedor": "Cafeteria",
+    "producto": "Leche liquida",
+    "min_stock": 8
+  },
+  {
+    "sede": "ISIDORA",
+    "proveedor": "Cafeteria",
+    "producto": "Papel Higienico (UN)",
+    "min_stock": 3
+  },
+  {
+    "sede": "ISIDORA",
+    "proveedor": "Cafeteria",
+    "producto": "Resma Papel Fotocopia (UN)",
+    "min_stock": 2
+  },
+  {
+    "sede": "ISIDORA",
+    "proveedor": "Cafeteria",
+    "producto": "Servilletas",
+    "min_stock": 2
+  },
+  {
+    "sede": "ISIDORA",
+    "proveedor": "Cafeteria",
+    "producto": "Toalla de Papel Jumbo (UN)",
+    "min_stock": 2
+  },
+  {
+    "sede": "KENNEDY",
+    "proveedor": "Aseo",
+    "producto": "Bolsas Basura 50x70",
+    "min_stock": 4
+  },
+  {
+    "sede": "KENNEDY",
+    "proveedor": "Aseo",
+    "producto": "Bolsas Basura 70x90",
+    "min_stock": 1
+  },
+  {
+    "sede": "KENNEDY",
+    "proveedor": "Aseo",
+    "producto": "Bolsas Basura 80x110",
+    "min_stock": 4
+  },
+  {
+    "sede": "KENNEDY",
+    "proveedor": "Aseo",
+    "producto": "Cloro Gel",
+    "min_stock": 1
+  },
+  {
+    "sede": "KENNEDY",
+    "proveedor": "Aseo",
+    "producto": "Esponja 4U",
+    "min_stock": 1
+  },
+  {
+    "sede": "KENNEDY",
+    "proveedor": "Aseo",
+    "producto": "Limpia Piso",
+    "min_stock": 1
+  },
+  {
+    "sede": "KENNEDY",
+    "proveedor": "Aseo",
+    "producto": "Mopa Redonda",
+    "min_stock": 2
+  },
+  {
+    "sede": "KENNEDY",
+    "proveedor": "Cafe Caribe",
+    "producto": "Cafe Grano (KG)",
+    "min_stock": 4
+  },
+  {
+    "sede": "KENNEDY",
+    "proveedor": "Cafeteria",
+    "producto": "Endulzante",
+    "min_stock": 1
+  },
+  {
+    "sede": "KENNEDY",
+    "proveedor": "Cafeteria",
+    "producto": "Leche liquida",
+    "min_stock": 3
+  },
+  {
+    "sede": "KENNEDY",
+    "proveedor": "Cafeteria",
+    "producto": "Papel Higienico (UN)",
+    "min_stock": 10
+  },
+  {
+    "sede": "KENNEDY",
+    "proveedor": "Cafeteria",
+    "producto": "Papel Interfoliado",
+    "min_stock": 1
+  },
+  {
+    "sede": "KENNEDY",
+    "proveedor": "Cafeteria",
+    "producto": "Resma Papel Fotocopia (UN)",
+    "min_stock": 1
+  },
+  {
+    "sede": "KENNEDY",
+    "proveedor": "Cafeteria",
+    "producto": "Servilletas",
+    "min_stock": 3
+  },
+  {
+    "sede": "KENNEDY",
+    "proveedor": "Cafeteria",
+    "producto": "Toalla de Papel Jumbo (UN)",
+    "min_stock": 2
+  },
+  {
+    "sede": "LOS MILITARES-BCI",
+    "proveedor": "Aseo",
+    "producto": "Bolsas Basura 50x70",
+    "min_stock": 2
+  },
+  {
+    "sede": "LOS MILITARES-BCI",
+    "proveedor": "Aseo",
+    "producto": "Bolsas Basura 70x90",
+    "min_stock": 3
+  },
+  {
+    "sede": "LOS MILITARES-BCI",
+    "proveedor": "Aseo",
+    "producto": "Bolsas Basura 80x110",
+    "min_stock": 3
+  },
+  {
+    "sede": "LOS MILITARES-BCI",
+    "proveedor": "Aseo",
+    "producto": "Cloro Gel",
+    "min_stock": 1
+  },
+  {
+    "sede": "LOS MILITARES-BCI",
+    "proveedor": "Aseo",
+    "producto": "Esponja 4U",
+    "min_stock": 2
+  },
+  {
+    "sede": "LOS MILITARES-BCI",
+    "proveedor": "Aseo",
+    "producto": "Limpia Piso",
+    "min_stock": 1
+  },
+  {
+    "sede": "LOS MILITARES-BCI",
+    "proveedor": "Aseo",
+    "producto": "Mopa Redonda",
+    "min_stock": 3
+  },
+  {
+    "sede": "LOS MILITARES-BCI",
+    "proveedor": "Cafeteria",
+    "producto": "Cafe Granulado",
+    "min_stock": 1
+  },
+  {
+    "sede": "LOS MILITARES-BCI",
+    "proveedor": "Cafeteria",
+    "producto": "Endulzante",
+    "min_stock": 1
+  },
+  {
+    "sede": "LOS MILITARES-BCI",
+    "proveedor": "Cafeteria",
+    "producto": "Leche liquida",
+    "min_stock": 4
+  },
+  {
+    "sede": "LOS MILITARES-BCI",
+    "proveedor": "Cafeteria",
+    "producto": "Papel Higienico (UN)",
+    "min_stock": 3
+  },
+  {
+    "sede": "LOS MILITARES-BCI",
+    "proveedor": "Cafeteria",
+    "producto": "Resma Papel Fotocopia (UN)",
+    "min_stock": 4
+  },
+  {
+    "sede": "LOS MILITARES-BCI",
+    "proveedor": "Cafeteria",
+    "producto": "Servilletas",
+    "min_stock": 3
+  },
+  {
+    "sede": "LOS MILITARES-BCI",
+    "proveedor": "Cafeteria",
+    "producto": "Toalla de Papel Jumbo (UN)",
+    "min_stock": 3
+  },
+  {
+    "sede": "LOS MILITARES-BCI",
+    "proveedor": "Coporate Coffe",
+    "producto": "Cafe Grano (KG)",
+    "min_stock": 1
+  },
+  {
+    "sede": "MANUEL MONTT 2 & 5",
+    "proveedor": "Aseo",
+    "producto": "Bolsas Basura  70x90",
+    "min_stock": 1
+  },
+  {
+    "sede": "MANUEL MONTT 2 & 5",
+    "proveedor": "Aseo",
+    "producto": "Bolsas Basura  80x110",
+    "min_stock": 3
+  },
+  {
+    "sede": "MANUEL MONTT 2 & 5",
+    "proveedor": "Aseo",
+    "producto": "Bolsas Basura 50x70",
+    "min_stock": 14
+  },
+  {
+    "sede": "MANUEL MONTT 2 & 5",
+    "proveedor": "Aseo",
+    "producto": "Cloro Gel",
+    "min_stock": 1
+  },
+  {
+    "sede": "MANUEL MONTT 2 & 5",
+    "proveedor": "Aseo",
+    "producto": "Esponja 4U",
+    "min_stock": 2
+  },
+  {
+    "sede": "MANUEL MONTT 2 & 5",
+    "proveedor": "Aseo",
+    "producto": "Limpia Piso",
+    "min_stock": 1
+  },
+  {
+    "sede": "MANUEL MONTT 2 & 5",
+    "proveedor": "Aseo",
+    "producto": "Limpia piso",
+    "min_stock": 1
+  },
+  {
+    "sede": "MANUEL MONTT 2 & 5",
+    "proveedor": "Aseo",
+    "producto": "Mopa Redonda",
+    "min_stock": 1
+  },
+  {
+    "sede": "MANUEL MONTT 2 & 5",
+    "proveedor": "Cafeteria",
+    "producto": "Cafe Grano (KG)",
+    "min_stock": 16
+  },
+  {
+    "sede": "MANUEL MONTT 2 & 5",
+    "proveedor": "Cafeteria",
+    "producto": "Endulzante",
+    "min_stock": 1
+  },
+  {
+    "sede": "MANUEL MONTT 2 & 5",
+    "proveedor": "Cafeteria",
+    "producto": "Leche Liquida",
+    "min_stock": 2
+  },
+  {
+    "sede": "MANUEL MONTT 2 & 5",
+    "proveedor": "Cafeteria",
+    "producto": "Leche Líquida",
+    "min_stock": 2
+  },
+  {
+    "sede": "MANUEL MONTT 2 & 5",
+    "proveedor": "Cafeteria",
+    "producto": "Papel Higienico (UN)",
+    "min_stock": 3
+  },
+  {
+    "sede": "MANUEL MONTT 2 & 5",
+    "proveedor": "Cafeteria",
+    "producto": "Resma Papel Fotocopia (UN)",
+    "min_stock": 1
+  },
+  {
+    "sede": "MANUEL MONTT 2 & 5",
+    "proveedor": "Cafeteria",
+    "producto": "Servilleta",
+    "min_stock": 1
+  },
+  {
+    "sede": "MANUEL MONTT 2 & 5",
+    "proveedor": "Cafeteria",
+    "producto": "Toalla de Papel Jumbo (UN)",
+    "min_stock": 2
+  },
+  {
+    "sede": "MONJITAS",
+    "proveedor": "Aseo",
+    "producto": "Bolsas Basura 50x70",
+    "min_stock": 6
+  },
+  {
+    "sede": "MONJITAS",
+    "proveedor": "Aseo",
+    "producto": "Bolsas Basura 70x90",
+    "min_stock": 3
+  },
+  {
+    "sede": "MONJITAS",
+    "proveedor": "Aseo",
+    "producto": "Bolsas Basura 80x110",
+    "min_stock": 15
+  },
+  {
+    "sede": "MONJITAS",
+    "proveedor": "Aseo",
+    "producto": "Cif en crema",
+    "min_stock": 1
+  },
+  {
+    "sede": "MONJITAS",
+    "proveedor": "Aseo",
+    "producto": "Cloro Gel",
+    "min_stock": 2
+  },
+  {
+    "sede": "MONJITAS",
+    "proveedor": "Aseo",
+    "producto": "Esponja 4U",
+    "min_stock": 4
+  },
+  {
+    "sede": "MONJITAS",
+    "proveedor": "Aseo",
+    "producto": "Limpia Piso",
+    "min_stock": 2
+  },
+  {
+    "sede": "MONJITAS",
+    "proveedor": "Aseo",
+    "producto": "Mopa Redonda",
+    "min_stock": 1
+  },
+  {
+    "sede": "MONJITAS",
+    "proveedor": "Aseo",
+    "producto": "Repuesto Jabon",
+    "min_stock": 1
+  },
+  {
+    "sede": "MONJITAS",
+    "proveedor": "Cafe Caribe",
+    "producto": "Cafe Grano (KG)",
+    "min_stock": 3
+  },
+  {
+    "sede": "MONJITAS",
+    "proveedor": "Cafeteria",
+    "producto": "Aceite 500cc",
+    "min_stock": 1
+  },
+  {
+    "sede": "MONJITAS",
+    "proveedor": "Cafeteria",
+    "producto": "Aceto 500cc",
+    "min_stock": 1
+  },
+  {
+    "sede": "MONJITAS",
+    "proveedor": "Cafeteria",
+    "producto": "Cafe Granulado",
+    "min_stock": 1
+  },
+  {
+    "sede": "MONJITAS",
+    "proveedor": "Cafeteria",
+    "producto": "Endulzante",
+    "min_stock": 1
+  },
+  {
+    "sede": "MONJITAS",
+    "proveedor": "Cafeteria",
+    "producto": "Leche liquida",
+    "min_stock": 5
+  },
+  {
+    "sede": "MONJITAS",
+    "proveedor": "Cafeteria",
+    "producto": "Limon 1 Lt",
+    "min_stock": 2
+  },
+  {
+    "sede": "MONJITAS",
+    "proveedor": "Cafeteria",
+    "producto": "Papel Higienico (UN)",
+    "min_stock": 13
+  },
+  {
+    "sede": "MONJITAS",
+    "proveedor": "Cafeteria",
+    "producto": "Resma Papel Fotocopia (UN)",
+    "min_stock": 1
+  },
+  {
+    "sede": "MONJITAS",
+    "proveedor": "Cafeteria",
+    "producto": "Sal",
+    "min_stock": 1
+  },
+  {
+    "sede": "MONJITAS",
+    "proveedor": "Cafeteria",
+    "producto": "Servilletas",
+    "min_stock": 5
+  },
+  {
+    "sede": "MONJITAS",
+    "proveedor": "Cafeteria",
+    "producto": "Te Lypton (100 unid)",
+    "min_stock": 2
+  },
+  {
+    "sede": "MONJITAS",
+    "proveedor": "Cafeteria",
+    "producto": "Te Negro (100 unid)",
+    "min_stock": 3
+  },
+  {
+    "sede": "MONJITAS",
+    "proveedor": "Cafeteria",
+    "producto": "Te de hierbas (100 unid)",
+    "min_stock": 1
+  },
+  {
+    "sede": "MONJITAS",
+    "proveedor": "Cafeteria",
+    "producto": "Toalla de Papel Jumbo (UN)",
+    "min_stock": 3
+  },
+  {
+    "sede": "MONJITAS",
+    "proveedor": "Cafeteria",
+    "producto": "Vinagre 1 Lt",
+    "min_stock": 1
+  },
+  {
+    "sede": "NEOHAUS",
+    "proveedor": "Aseo",
+    "producto": "Bolsas Basura",
+    "min_stock": 2
+  },
+  {
+    "sede": "NEOHAUS",
+    "proveedor": "Aseo",
+    "producto": "Cloro Gel",
+    "min_stock": 1
+  },
+  {
+    "sede": "NEOHAUS",
+    "proveedor": "Aseo",
+    "producto": "Esponja 4U",
+    "min_stock": 1
+  },
+  {
+    "sede": "NEOHAUS",
+    "proveedor": "Aseo",
+    "producto": "Limpia Piso",
+    "min_stock": 1
+  },
+  {
+    "sede": "NEOHAUS",
+    "proveedor": "Aseo",
+    "producto": "Mopa Redonda",
+    "min_stock": 1
+  },
+  {
+    "sede": "NEOHAUS",
+    "proveedor": "Aseo",
+    "producto": "Papel interfoliado",
+    "min_stock": 7
+  },
+  {
+    "sede": "NEOHAUS",
+    "proveedor": "Cafeteria",
+    "producto": "Aceite de oliva",
+    "min_stock": 1
+  },
+  {
+    "sede": "NEOHAUS",
+    "proveedor": "Cafeteria",
+    "producto": "Cafe Granulado",
+    "min_stock": 1
+  },
+  {
+    "sede": "NEOHAUS",
+    "proveedor": "Cafeteria",
+    "producto": "Endulzante",
+    "min_stock": 1
+  },
+  {
+    "sede": "NEOHAUS",
+    "proveedor": "Cafeteria",
+    "producto": "Papel Higienico (UN)",
+    "min_stock": 2
+  },
+  {
+    "sede": "NEOHAUS",
+    "proveedor": "Cafeteria",
+    "producto": "Toalla de Papel Jumbo (UN)",
+    "min_stock": 1
+  },
+  {
+    "sede": "NEOHAUS",
+    "proveedor": "Cafeteria",
+    "producto": "Vasos de cartón",
+    "min_stock": 2
+  },
+  {
+    "sede": "NEOHAUS",
+    "proveedor": "Corporate Coffe",
+    "producto": "Cafe Grano (KG)",
+    "min_stock": 1
+  },
+  {
+    "sede": "NEOHAUS",
+    "proveedor": "Papelería",
+    "producto": "Resma Papel Fotocopia (UN)",
+    "min_stock": 1
+  },
+  {
+    "sede": "NUEVA LAS CONDES",
+    "proveedor": "Aseo",
+    "producto": "Bolsas Basura 50x70",
+    "min_stock": 6
+  },
+  {
+    "sede": "NUEVA LAS CONDES",
+    "proveedor": "Aseo",
+    "producto": "Bolsas Basura 70x90",
+    "min_stock": 1
+  },
+  {
+    "sede": "NUEVA LAS CONDES",
+    "proveedor": "Aseo",
+    "producto": "Bolsas Basura 80x110",
+    "min_stock": 3
+  },
+  {
+    "sede": "NUEVA LAS CONDES",
+    "proveedor": "Aseo",
+    "producto": "Cloro Gel",
+    "min_stock": 1
+  },
+  {
+    "sede": "NUEVA LAS CONDES",
+    "proveedor": "Aseo",
+    "producto": "Desodorante ambiental",
+    "min_stock": 1
+  },
+  {
+    "sede": "NUEVA LAS CONDES",
+    "proveedor": "Aseo",
+    "producto": "Esponja 4U",
+    "min_stock": 2
+  },
+  {
+    "sede": "NUEVA LAS CONDES",
+    "proveedor": "Aseo",
+    "producto": "Limpia Piso",
+    "min_stock": 1
+  },
+  {
+    "sede": "NUEVA LAS CONDES",
+    "proveedor": "Aseo",
+    "producto": "Mopa Rectangular",
+    "min_stock": 1
+  },
+  {
+    "sede": "NUEVA LAS CONDES",
+    "proveedor": "Aseo",
+    "producto": "Mopa Redonda",
+    "min_stock": 1
+  },
+  {
+    "sede": "NUEVA LAS CONDES",
+    "proveedor": "Cafe Caribe",
+    "producto": "Cafe Grano (KG)",
+    "min_stock": 3
+  },
+  {
+    "sede": "NUEVA LAS CONDES",
+    "proveedor": "Cafeteria",
+    "producto": "Aceite de oliva",
+    "min_stock": 1
+  },
+  {
+    "sede": "NUEVA LAS CONDES",
+    "proveedor": "Cafeteria",
+    "producto": "Cafe Granulado",
+    "min_stock": 1
+  },
+  {
+    "sede": "NUEVA LAS CONDES",
+    "proveedor": "Cafeteria",
+    "producto": "Endulzante",
+    "min_stock": 1
+  },
+  {
+    "sede": "NUEVA LAS CONDES",
+    "proveedor": "Cafeteria",
+    "producto": "Leche liquida",
+    "min_stock": 4
+  },
+  {
+    "sede": "NUEVA LAS CONDES",
+    "proveedor": "Cafeteria",
+    "producto": "Papel Higienico (UN)",
+    "min_stock": 11
+  },
+  {
+    "sede": "NUEVA LAS CONDES",
+    "proveedor": "Cafeteria",
+    "producto": "Resma Papel Fotocopia (UN)",
+    "min_stock": 1
+  },
+  {
+    "sede": "NUEVA LAS CONDES",
+    "proveedor": "Cafeteria",
+    "producto": "Servilletas",
+    "min_stock": 4
+  },
+  {
+    "sede": "NUEVA LAS CONDES",
+    "proveedor": "Cafeteria",
+    "producto": "Te de Hiervas surtida",
+    "min_stock": 1
+  },
+  {
+    "sede": "NUEVA LAS CONDES",
+    "proveedor": "Cafeteria",
+    "producto": "Toalla de Papel Jumbo (UN)",
+    "min_stock": 4
+  },
+  {
+    "sede": "PLAZA EGAÑA",
+    "proveedor": "Aseo",
+    "producto": "Bolsas Basura 50x70",
+    "min_stock": 8
+  },
+  {
+    "sede": "PLAZA EGAÑA",
+    "proveedor": "Aseo",
+    "producto": "Bolsas Basura 70x90",
+    "min_stock": 4
+  },
+  {
+    "sede": "PLAZA EGAÑA",
+    "proveedor": "Aseo",
+    "producto": "Bolsas Basura 80x110",
+    "min_stock": 3
+  },
+  {
+    "sede": "PLAZA EGAÑA",
+    "proveedor": "Aseo",
+    "producto": "Cloro Gel",
+    "min_stock": 1
+  },
+  {
+    "sede": "PLAZA EGAÑA",
+    "proveedor": "Aseo",
+    "producto": "Esponja 4U",
+    "min_stock": 1
+  },
+  {
+    "sede": "PLAZA EGAÑA",
+    "proveedor": "Aseo",
+    "producto": "Limpia Piso",
+    "min_stock": 1
+  },
+  {
+    "sede": "PLAZA EGAÑA",
+    "proveedor": "Aseo",
+    "producto": "Mopa Redonda",
+    "min_stock": 1
+  },
+  {
+    "sede": "PLAZA EGAÑA",
+    "proveedor": "Cafeteria",
+    "producto": "Cafe Grano (KG)",
+    "min_stock": 2
+  },
+  {
+    "sede": "PLAZA EGAÑA",
+    "proveedor": "Cafeteria",
+    "producto": "Cafe Granulado",
+    "min_stock": 1
+  },
+  {
+    "sede": "PLAZA EGAÑA",
+    "proveedor": "Cafeteria",
+    "producto": "Endulzante",
+    "min_stock": 1
+  },
+  {
+    "sede": "PLAZA EGAÑA",
+    "proveedor": "Cafeteria",
+    "producto": "Leche Liquida",
+    "min_stock": 3
+  },
+  {
+    "sede": "PLAZA EGAÑA",
+    "proveedor": "Cafeteria",
+    "producto": "Papel Higienico (UN)",
+    "min_stock": 2
+  },
+  {
+    "sede": "PLAZA EGAÑA",
+    "proveedor": "Cafeteria",
+    "producto": "Resma Papel Fotocopia (UN)",
+    "min_stock": 2
+  },
+  {
+    "sede": "PLAZA EGAÑA",
+    "proveedor": "Cafeteria",
+    "producto": "Servilletas",
+    "min_stock": 3
+  },
+  {
+    "sede": "PLAZA EGAÑA",
+    "proveedor": "Cafeteria",
+    "producto": "Toalla de Papel Jumbo (UN)",
+    "min_stock": 1
+  },
+  {
+    "sede": "SANTA LUCIA",
+    "proveedor": "Aseo",
+    "producto": "Bolsas Basura 50x70",
+    "min_stock": 3
+  },
+  {
+    "sede": "SANTA LUCIA",
+    "proveedor": "Aseo",
+    "producto": "Bolsas Basura 70x90",
+    "min_stock": 3
+  },
+  {
+    "sede": "SANTA LUCIA",
+    "proveedor": "Aseo",
+    "producto": "Bolsas Basura 80x110",
+    "min_stock": 3
+  },
+  {
+    "sede": "SANTA LUCIA",
+    "proveedor": "Aseo",
+    "producto": "Cloro Gel",
+    "min_stock": 1
+  },
+  {
+    "sede": "SANTA LUCIA",
+    "proveedor": "Aseo",
+    "producto": "Esponja 4U",
+    "min_stock": 2
+  },
+  {
+    "sede": "SANTA LUCIA",
+    "proveedor": "Aseo",
+    "producto": "Limpia Piso",
+    "min_stock": 1
+  },
+  {
+    "sede": "SANTA LUCIA",
+    "proveedor": "Aseo",
+    "producto": "Mopa Redonda",
+    "min_stock": 2
+  },
+  {
+    "sede": "SANTA LUCIA",
+    "proveedor": "Cafeteria",
+    "producto": "Azucar kg",
+    "min_stock": 1
+  },
+  {
+    "sede": "SANTA LUCIA",
+    "proveedor": "Cafeteria",
+    "producto": "Cafe Grano (KG)",
+    "min_stock": 4
+  },
+  {
+    "sede": "SANTA LUCIA",
+    "proveedor": "Cafeteria",
+    "producto": "Cafe Granulado",
+    "min_stock": 1
+  },
+  {
+    "sede": "SANTA LUCIA",
+    "proveedor": "Cafeteria",
+    "producto": "Endulzante",
+    "min_stock": 1
+  },
+  {
+    "sede": "SANTA LUCIA",
+    "proveedor": "Cafeteria",
+    "producto": "Leche Liquida",
+    "min_stock": 5
+  },
+  {
+    "sede": "SANTA LUCIA",
+    "proveedor": "Cafeteria",
+    "producto": "Papel Higienico (UN)",
+    "min_stock": 7
+  },
+  {
+    "sede": "SANTA LUCIA",
+    "proveedor": "Cafeteria",
+    "producto": "Resma Papel Fotocopia (UN)",
+    "min_stock": 2
+  },
+  {
+    "sede": "SANTA LUCIA",
+    "proveedor": "Cafeteria",
+    "producto": "Servilletas",
+    "min_stock": 3
+  },
+  {
+    "sede": "SANTA LUCIA",
+    "proveedor": "Cafeteria",
+    "producto": "Toalla de Papel Jumbo (UN)",
+    "min_stock": 2
+  },
+  {
+    "sede": "SANTA ROSA ",
+    "proveedor": "Aseo",
+    "producto": "Bolsas Basura 50x70",
+    "min_stock": 3
+  },
+  {
+    "sede": "SANTA ROSA ",
+    "proveedor": "Aseo",
+    "producto": "Bolsas Basura 70x90",
+    "min_stock": 5
+  },
+  {
+    "sede": "SANTA ROSA ",
+    "proveedor": "Aseo",
+    "producto": "Bolsas Basura 80x110",
+    "min_stock": 7
+  },
+  {
+    "sede": "SANTA ROSA ",
+    "proveedor": "Aseo",
+    "producto": "Cloro Gel",
+    "min_stock": 1
+  },
+  {
+    "sede": "SANTA ROSA ",
+    "proveedor": "Aseo",
+    "producto": "Esponja 4U",
+    "min_stock": 2
+  },
+  {
+    "sede": "SANTA ROSA ",
+    "proveedor": "Aseo",
+    "producto": "Limpia Piso",
+    "min_stock": 1
+  },
+  {
+    "sede": "SANTA ROSA ",
+    "proveedor": "Aseo",
+    "producto": "Mopa Redonda",
+    "min_stock": 2
+  },
+  {
+    "sede": "SANTA ROSA ",
+    "proveedor": "Aseo",
+    "producto": "Papel Higienico (UN)",
+    "min_stock": 12
+  },
+  {
+    "sede": "SANTA ROSA ",
+    "proveedor": "Aseo",
+    "producto": "Toalla de Papel Jumbo (UN)",
+    "min_stock": 3
+  },
+  {
+    "sede": "SANTA ROSA ",
+    "proveedor": "Cafeteria",
+    "producto": "Cafe Grano (KG)",
+    "min_stock": 2
+  },
+  {
+    "sede": "SANTA ROSA ",
+    "proveedor": "Cafeteria",
+    "producto": "Cafe Granulado",
+    "min_stock": 1
+  },
+  {
+    "sede": "SANTA ROSA ",
+    "proveedor": "Cafeteria",
+    "producto": "Chocolate",
+    "min_stock": 2
+  },
+  {
+    "sede": "SANTA ROSA ",
+    "proveedor": "Cafeteria",
+    "producto": "Endulzante",
+    "min_stock": 1
+  },
+  {
+    "sede": "SANTA ROSA ",
+    "proveedor": "Cafeteria",
+    "producto": "Leche en polvo",
+    "min_stock": 2
+  },
+  {
+    "sede": "SANTA ROSA ",
+    "proveedor": "Cafeteria",
+    "producto": "Resma Papel Fotocopia (UN)",
+    "min_stock": 2
+  },
+  {
+    "sede": "SANTA ROSA ",
+    "proveedor": "Cafeteria",
+    "producto": "Servilletas",
+    "min_stock": 8
+  },
+  {
+    "sede": "SANTA ROSA ",
+    "proveedor": "Cafeteria",
+    "producto": "Te Natural",
+    "min_stock": 1
+  },
+  {
+    "sede": "SANTA ROSA ",
+    "proveedor": "Cafeteria",
+    "producto": "Vainilla 500gr",
+    "min_stock": 2
+  },
+  {
+    "sede": "SUECIA 7 & 8",
+    "proveedor": "Aseo",
+    "producto": "Bolsas Basura 50x70",
+    "min_stock": 8
+  },
+  {
+    "sede": "SUECIA 7 & 8",
+    "proveedor": "Aseo",
+    "producto": "Bolsas Basura 70x90",
+    "min_stock": 4
+  },
+  {
+    "sede": "SUECIA 7 & 8",
+    "proveedor": "Aseo",
+    "producto": "Bolsas Basura 80x110",
+    "min_stock": 3
+  },
+  {
+    "sede": "SUECIA 7 & 8",
+    "proveedor": "Aseo",
+    "producto": "Cloro Gel",
+    "min_stock": 1
+  },
+  {
+    "sede": "SUECIA 7 & 8",
+    "proveedor": "Aseo",
+    "producto": "Esponja 4U",
+    "min_stock": 4
+  },
+  {
+    "sede": "SUECIA 7 & 8",
+    "proveedor": "Aseo",
+    "producto": "Limpia Piso",
+    "min_stock": 1
+  },
+  {
+    "sede": "SUECIA 7 & 8",
+    "proveedor": "Aseo",
+    "producto": "Mopa Redonda",
+    "min_stock": 2
+  },
+  {
+    "sede": "SUECIA 7 & 8",
+    "proveedor": "Cafeteria",
+    "producto": "Cafe Grano (KG)",
+    "min_stock": 2
+  },
+  {
+    "sede": "SUECIA 7 & 8",
+    "proveedor": "Cafeteria",
+    "producto": "Cafe Granulado",
+    "min_stock": 2
+  },
+  {
+    "sede": "SUECIA 7 & 8",
+    "proveedor": "Cafeteria",
+    "producto": "Endulzante",
+    "min_stock": 2
+  },
+  {
+    "sede": "SUECIA 7 & 8",
+    "proveedor": "Cafeteria",
+    "producto": "Leche Liquida",
+    "min_stock": 5
+  },
+  {
+    "sede": "SUECIA 7 & 8",
+    "proveedor": "Cafeteria",
+    "producto": "Papel Higienico (UN)",
+    "min_stock": 8
+  },
+  {
+    "sede": "SUECIA 7 & 8",
+    "proveedor": "Cafeteria",
+    "producto": "Resma Papel Fotocopia (UN)",
+    "min_stock": 1
+  },
+  {
+    "sede": "SUECIA 7 & 8",
+    "proveedor": "Cafeteria",
+    "producto": "Toalla de Papel Jumbo (UN)",
+    "min_stock": 4
+  },
+  {
+    "sede": "TOBALABA 3",
+    "proveedor": "Aseo",
+    "producto": "Bolsas Basura",
+    "min_stock": 12
+  },
+  {
+    "sede": "TOBALABA 3",
+    "proveedor": "Aseo",
+    "producto": "Cloro Gel",
+    "min_stock": 1
+  },
+  {
+    "sede": "TOBALABA 3",
+    "proveedor": "Aseo",
+    "producto": "Esponja 4U",
+    "min_stock": 1
+  },
+  {
+    "sede": "TOBALABA 3",
+    "proveedor": "Aseo",
+    "producto": "Limpia Piso",
+    "min_stock": 1
+  },
+  {
+    "sede": "TOBALABA 3",
+    "proveedor": "Aseo",
+    "producto": "Mopa Redonda",
+    "min_stock": 1
+  },
+  {
+    "sede": "TOBALABA 3",
+    "proveedor": "Cafeteria",
+    "producto": "Azucar (caja)",
+    "min_stock": 1
+  },
+  {
+    "sede": "TOBALABA 3",
+    "proveedor": "Cafeteria",
+    "producto": "Cafe Grano (KG)",
+    "min_stock": 1
+  },
+  {
+    "sede": "TOBALABA 3",
+    "proveedor": "Cafeteria",
+    "producto": "Endulzante",
+    "min_stock": 1
+  },
+  {
+    "sede": "TOBALABA 3",
+    "proveedor": "Cafeteria",
+    "producto": "Leche Liquida",
+    "min_stock": 7
+  },
+  {
+    "sede": "TOBALABA 3",
+    "proveedor": "Cafeteria",
+    "producto": "Papel Higienico (UN)",
+    "min_stock": 12
+  },
+  {
+    "sede": "TOBALABA 3",
+    "proveedor": "Cafeteria",
+    "producto": "Resma Papel Fotocopia (UN)",
+    "min_stock": 1
+  },
+  {
+    "sede": "TOBALABA 3",
+    "proveedor": "Cafeteria",
+    "producto": "Servilletas",
+    "min_stock": 3
+  },
+  {
+    "sede": "TOBALABA 3",
+    "proveedor": "Cafeteria",
+    "producto": "Toalla de Papel Jumbo (UN)",
+    "min_stock": 3
+  },
+  {
+    "sede": "VESPUCIO",
+    "proveedor": "Aseo",
+    "producto": "Aerosol",
+    "min_stock": 2
+  },
+  {
+    "sede": "VESPUCIO",
+    "proveedor": "Aseo",
+    "producto": "Antigrasa x 5L",
+    "min_stock": 1
+  },
+  {
+    "sede": "VESPUCIO",
+    "proveedor": "Aseo",
+    "producto": "Antisarro x 5 L",
+    "min_stock": 1
+  },
+  {
+    "sede": "VESPUCIO",
+    "proveedor": "Aseo",
+    "producto": "Bolsas Basura 50x70",
+    "min_stock": 5
+  },
+  {
+    "sede": "VESPUCIO",
+    "proveedor": "Aseo",
+    "producto": "Bolsas Basura 70x90",
+    "min_stock": 6
+  },
+  {
+    "sede": "VESPUCIO",
+    "proveedor": "Aseo",
+    "producto": "Bolsas Basura 80x110",
+    "min_stock": 2
+  },
+  {
+    "sede": "VESPUCIO",
+    "proveedor": "Aseo",
+    "producto": "Cif en crema",
+    "min_stock": 1
+  },
+  {
+    "sede": "VESPUCIO",
+    "proveedor": "Aseo",
+    "producto": "Cloro Gel",
+    "min_stock": 1
+  },
+  {
+    "sede": "VESPUCIO",
+    "proveedor": "Aseo",
+    "producto": "Esponja 4U",
+    "min_stock": 1
+  },
+  {
+    "sede": "VESPUCIO",
+    "proveedor": "Aseo",
+    "producto": "Guantes",
+    "min_stock": 2
+  },
+  {
+    "sede": "VESPUCIO",
+    "proveedor": "Aseo",
+    "producto": "Jabon Lavaloza x 5L",
+    "min_stock": 1
+  },
+  {
+    "sede": "VESPUCIO",
+    "proveedor": "Aseo",
+    "producto": "Jabon Liquido x 5L",
+    "min_stock": 1
+  },
+  {
+    "sede": "VESPUCIO",
+    "proveedor": "Aseo",
+    "producto": "Lavavajillas",
+    "min_stock": 5
+  },
+  {
+    "sede": "VESPUCIO",
+    "proveedor": "Aseo",
+    "producto": "Limpia Piso",
+    "min_stock": 1
+  },
+  {
+    "sede": "VESPUCIO",
+    "proveedor": "Aseo",
+    "producto": "Limpia Vidrios",
+    "min_stock": 1
+  },
+  {
+    "sede": "VESPUCIO",
+    "proveedor": "Aseo",
+    "producto": "Lisoform",
+    "min_stock": 1
+  },
+  {
+    "sede": "VESPUCIO",
+    "proveedor": "Aseo",
+    "producto": "Lustra Muebles",
+    "min_stock": 2
+  },
+  {
+    "sede": "VESPUCIO",
+    "proveedor": "Aseo",
+    "producto": "Mopa Avion",
+    "min_stock": 1
+  },
+  {
+    "sede": "VESPUCIO",
+    "proveedor": "Aseo",
+    "producto": "Mopa Humeda",
+    "min_stock": 1
+  },
+  {
+    "sede": "VESPUCIO",
+    "proveedor": "Aseo",
+    "producto": "Mopa Redonda",
+    "min_stock": 1
+  },
+  {
+    "sede": "VESPUCIO",
+    "proveedor": "Aseo",
+    "producto": "Papel Higienico (UN)",
+    "min_stock": 11
+  },
+  {
+    "sede": "VESPUCIO",
+    "proveedor": "Aseo",
+    "producto": "Paño Esponja x 6Uni.",
+    "min_stock": 2
+  },
+  {
+    "sede": "VESPUCIO",
+    "proveedor": "Aseo",
+    "producto": "Sal Lavavajillas",
+    "min_stock": 1
+  },
+  {
+    "sede": "VESPUCIO",
+    "proveedor": "Aseo",
+    "producto": "Toalla de Papel Jumbo (UN)",
+    "min_stock": 3
+  },
+  {
+    "sede": "VESPUCIO",
+    "proveedor": "Aseo",
+    "producto": "Trapo Amarillo Uni.",
+    "min_stock": 3
+  },
+  {
+    "sede": "VESPUCIO",
+    "proveedor": "Aseo",
+    "producto": "Trapo Azul Uni.",
+    "min_stock": 5
+  },
+  {
+    "sede": "VESPUCIO",
+    "proveedor": "Aseo",
+    "producto": "Trapo Verde Uni.",
+    "min_stock": 2
+  },
+  {
+    "sede": "VESPUCIO",
+    "proveedor": "Cafe Caribe",
+    "producto": "Cafe Grano (KG)",
+    "min_stock": 4
+  },
+  {
+    "sede": "VESPUCIO",
+    "proveedor": "Cafeteria",
+    "producto": "Aceite de oliva",
+    "min_stock": 1
+  },
+  {
+    "sede": "VESPUCIO",
+    "proveedor": "Cafeteria",
+    "producto": "Aceto Balsamico",
+    "min_stock": 1
+  },
+  {
+    "sede": "VESPUCIO",
+    "proveedor": "Cafeteria",
+    "producto": "Cafe Granulado",
+    "min_stock": 1
+  },
+  {
+    "sede": "VESPUCIO",
+    "proveedor": "Cafeteria",
+    "producto": "Endulzante",
+    "min_stock": 1
+  },
+  {
+    "sede": "VESPUCIO",
+    "proveedor": "Cafeteria",
+    "producto": "Jugo de Limon",
+    "min_stock": 2
+  },
+  {
+    "sede": "VESPUCIO",
+    "proveedor": "Cafeteria",
+    "producto": "Leche liquida",
+    "min_stock": 4
+  },
+  {
+    "sede": "VESPUCIO",
+    "proveedor": "Cafeteria",
+    "producto": "Resma Papel Fot. Carta (UN)",
+    "min_stock": 2
+  },
+  {
+    "sede": "VESPUCIO",
+    "proveedor": "Cafeteria",
+    "producto": "Resma Papel Fot. Oficio (UN)",
+    "min_stock": 4
+  },
+  {
+    "sede": "VESPUCIO",
+    "proveedor": "Cafeteria",
+    "producto": "Revolvedores",
+    "min_stock": 4
+  },
+  {
+    "sede": "VESPUCIO",
+    "proveedor": "Cafeteria",
+    "producto": "Sal",
+    "min_stock": 1
+  },
+  {
+    "sede": "VESPUCIO",
+    "proveedor": "Cafeteria",
+    "producto": "Servilletas",
+    "min_stock": 3
+  },
+  {
+    "sede": "VESPUCIO",
+    "proveedor": "Cafeteria",
+    "producto": "Sobre Azucar x Caja (800 S)",
+    "min_stock": 1
+  },
+  {
+    "sede": "VESPUCIO",
+    "proveedor": "Cafeteria",
+    "producto": "Vinagre 1000 ml",
+    "min_stock": 1
+  },
+  {
+    "sede": "VESPUCIO",
+    "proveedor": "Cafeteria",
+    "producto": "Vinagre 500 ml",
+    "min_stock": 1
+  }
+]
