@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { COLUMNS, COL_IDS, CATEGORIES, PRIORITY, SEDES, USERS, ROLE_LABELS, ROLE_COLORS, NOTIFY_EMAILS, fmt, fdate, daysAgo, today } from "./constants.js";
 import { isConfigured, fetchAllTickets, createTicket, updateTicket, deleteTicket, sendNotification, testConnection } from "./sheets.js";
+import { fetchConfig, upsertConfig, parseSedeCM, parseExtraUsers, parseRoleOverrides } from "./config_sheets.js";
 import Inventario from "./Inventario.jsx";
 
 const DEMO = [
@@ -19,7 +20,15 @@ function setCurUser(u){localStorage.setItem("cw_user",JSON.stringify(u))}
 function logoutUser(){localStorage.removeItem("cw_user")}
 function getSavedUsers(){try{const s=localStorage.getItem("cw_users_extra");return s?JSON.parse(s):[]}catch{return[]}}
 function setSavedUsers(l){localStorage.setItem("cw_users_extra",JSON.stringify(l))}
-function getAllUsers(){const base=USERS;const extra=getSavedUsers();const be=new Set(base.map(u=>u.email.toLowerCase()));return[...base,...extra.filter(u=>!be.has(u.email.toLowerCase()))]}
+function getRoleOverrides(){try{return JSON.parse(localStorage.getItem("cw_role_overrides")||"{}")}catch{return{}}}
+function setRoleOverrides(m){localStorage.setItem("cw_role_overrides",JSON.stringify(m))}
+function getAllUsers(){
+  const overrides=getRoleOverrides();
+  const base=USERS.map(u=>({...u,role:overrides[u.email.toLowerCase()]||u.role}));
+  const extra=getSavedUsers().map(u=>({...u,role:overrides[u.email.toLowerCase()]||u.role}));
+  const be=new Set(base.map(u=>u.email.toLowerCase()));
+  return[...base,...extra.filter(u=>!be.has(u.email.toLowerCase()))];
+}
 function getNotifs(){try{return JSON.parse(localStorage.getItem("cw_notifs")||"[]")}catch{return[]}}
 function addNotif(n){const list=getNotifs();list.unshift({...n,ts:Date.now(),read:false});if(list.length>50)list.length=50;localStorage.setItem("cw_notifs",JSON.stringify(list))}
 function markNotifsRead(){const list=getNotifs();list.forEach(n=>n.read=true);localStorage.setItem("cw_notifs",JSON.stringify(list))}
@@ -96,17 +105,20 @@ function HeatRow({label,tickets,maxCells}){
   while(cells.length<maxCells)cells.push({color:"#f0f0f0",tip:null});
   return(<div style={{display:"flex",alignItems:"center",gap:0,padding:"4px 0",borderBottom:"1px solid #f5f5f5"}}><div style={{width:160,fontSize:12,fontWeight:500,color:"#525252",flexShrink:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{label}</div><div style={{display:"flex",gap:2,flex:1}}>{cells.slice(0,maxCells).map((c,i)=><div key={i} style={{width:14,height:14,borderRadius:2,background:c.color,cursor:c.tip?"pointer":"default"}} title={c.tip||""} onMouseEnter={e=>{if(c.tip)e.currentTarget.style.transform="scale(1.3)"}} onMouseLeave={e=>e.currentTarget.style.transform="scale(1)"}/>)}</div><div style={{display:"flex",gap:4,marginLeft:12,flexShrink:0,fontSize:11,fontFamily:"'JetBrains Mono',monospace",color:"#737373"}}><span style={{minWidth:20,textAlign:"right",fontWeight:600,color:"#1a1a1a"}}>{tickets.length}</span><span style={{color:"#d4d4d4"}}>|</span><span style={{minWidth:20,textAlign:"right",color:open.length>0?"#f97316":"#a3a3a3",fontWeight:open.length>0?600:400}}>{open.length}</span><span style={{color:"#d4d4d4"}}>|</span><span style={{minWidth:20,textAlign:"right",color:"#16a34a"}}>{closed.length}</span></div></div>);
 }
-function Dashboard({items,onBack}){
+function Dashboard({items,onBack,conn}){
   const[tab,setTab]=useState("sedes");const[users,setUsers]=useState(getAllUsers());
   const[nn,setNn]=useState("");const[ne,setNe]=useState("");const[nr,setNr]=useState("cm");
+  const[syncing,setSyncing]=useState(false);
   const us=[...new Set(items.map(i=>i.sede))].sort();const ck=Object.keys(CATEGORIES);
   const mo=Math.max(...us.map(s=>items.filter(t=>t.sede===s&&t.stage!=="finalizado").length),8);
   const mc=Math.max(...ck.map(c=>items.filter(t=>t.category===c&&t.stage!=="finalizado").length),8);
   const up=[...new Set(items.filter(i=>i.provider).map(i=>i.provider))].sort();
   const mp=Math.max(...up.map(p=>items.filter(t=>t.provider===p&&t.stage!=="finalizado").length),8);
   const be=new Set(USERS.map(u=>u.email.toLowerCase()));
-  const addU=()=>{if(!nn.trim()||!ne.trim())return;const em=ne.trim().toLowerCase();if(users.find(u=>u.email.toLowerCase()===em))return;const extra=[...getSavedUsers(),{name:nn.trim(),email:em,role:nr}];setSavedUsers(extra);setUsers(getAllUsers());setNn("");setNe("")};
-  const delU=idx=>{const u=users[idx];if(!u||be.has(u.email.toLowerCase()))return;const extra=getSavedUsers().filter(x=>x.email.toLowerCase()!==u.email.toLowerCase());setSavedUsers(extra);setUsers(getAllUsers())};
+  const sync=async(fn)=>{setSyncing(true);try{await fn()}catch(e){console.error(e)}finally{setSyncing(false)}};
+  const addU=()=>{if(!nn.trim()||!ne.trim())return;const em=ne.trim().toLowerCase();if(users.find(u=>u.email.toLowerCase()===em))return;const u={name:nn.trim(),email:em,role:nr};const extra=[...getSavedUsers(),u];setSavedUsers(extra);setUsers(getAllUsers());setNn("");setNe("");if(conn)sync(()=>upsertConfig("user_extra",em,JSON.stringify({name:u.name,role:u.role})));};
+  const delU=idx=>{const u=users[idx];if(!u||be.has(u.email.toLowerCase()))return;const extra=getSavedUsers().filter(x=>x.email.toLowerCase()!==u.email.toLowerCase());setSavedUsers(extra);setUsers(getAllUsers());if(conn)sync(()=>upsertConfig("user_extra",u.email.toLowerCase(),"deleted"));};
+  const changeRole=(u,newRole)=>{const overrides={...getRoleOverrides(),[u.email.toLowerCase()]:newRole};setRoleOverrides(overrides);setUsers(getAllUsers());if(conn)sync(()=>upsertConfig("user_role",u.email.toLowerCase(),newRole));};
   const ts=a=>({padding:"8px 16px",fontSize:12,fontWeight:500,cursor:"pointer",borderRadius:7,border:"none",fontFamily:"'Sora',sans-serif",background:a?"#1a1a1a":"#fff",color:a?"#fff":"#737373"});
   const to=items.filter(t=>t.stage!=="finalizado").length;const tc=items.filter(t=>t.stage==="finalizado").length;
   const urg=items.filter(t=>t.stage!=="finalizado"&&t.priority==="Urgente").length;const alt=items.filter(t=>t.stage!=="finalizado"&&t.priority==="Alta").length;
@@ -117,7 +129,8 @@ function Dashboard({items,onBack}){
     {tab==="sedes"&&<div><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}><div style={SL}>Por sede ({us.length})</div>{legend}</div><div style={{background:"#fff",border:"1px solid #f0f0f0",borderRadius:10,padding:"8px 16px"}}>{us.map(s=><HeatRow key={s} label={s} tickets={items.filter(t=>t.sede===s)} maxCells={mo}/>)}</div></div>}
     {tab==="tipos"&&<div><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}><div style={SL}>Por tipo</div>{legend}</div><div style={{background:"#fff",border:"1px solid #f0f0f0",borderRadius:10,padding:"8px 16px"}}>{ck.map(c=><HeatRow key={c} label={c} tickets={items.filter(t=>t.category===c)} maxCells={mc}/>)}</div></div>}
     {tab==="proveedores"&&<div><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}><div style={SL}>Por proveedor ({up.length})</div>{legend}</div><div style={{background:"#fff",border:"1px solid #f0f0f0",borderRadius:10,padding:"8px 16px"}}>{up.map(p=><HeatRow key={p} label={p} tickets={items.filter(t=>t.provider===p)} maxCells={mp}/>)}</div></div>}
-    {tab==="usuarios"&&<div><div style={SL}>Usuarios ({users.length})</div><div style={{background:"#fff",borderRadius:10,border:"1px solid #f0f0f0",overflow:"hidden",marginBottom:16}}><table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}><thead><tr style={{borderBottom:"1px solid #e5e5e5"}}>{["Nombre","Email","Rol",""].map((h,i)=><th key={i} style={{padding:"10px 14px",textAlign:"left",fontSize:10,fontWeight:600,color:"#a3a3a3",textTransform:"uppercase",width:i===3?40:undefined}}>{h}</th>)}</tr></thead><tbody>{users.map((u,i)=>{const rc=ROLE_COLORS[u.role];const isB=be.has(u.email.toLowerCase());return<tr key={i} style={{borderBottom:"1px solid #f5f5f5"}}><td style={{padding:"8px 14px",fontWeight:500}}>{u.name}{isB&&<span style={{fontSize:8,color:"#d4d4d4",marginLeft:6}}>base</span>}</td><td style={{padding:"8px 14px",color:"#737373",fontFamily:"'JetBrains Mono',monospace",fontSize:11}}>{u.email}</td><td style={{padding:"8px 14px"}}><span style={{fontSize:10,fontWeight:500,color:rc,background:rc+"15",padding:"2px 8px",borderRadius:4}}>{ROLE_LABELS[u.role]}</span></td><td style={{padding:"8px 14px"}}>{!isB&&<button onClick={()=>delU(i)} style={{background:"none",border:"none",cursor:"pointer",color:"#e0e0e0",padding:2}} onMouseEnter={e=>e.currentTarget.style.color="#dc2626"} onMouseLeave={e=>e.currentTarget.style.color="#e0e0e0"}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>}</td></tr>})}</tbody></table></div>
+    {tab==="usuarios"&&<div><div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}><div style={SL}>Usuarios ({users.length})</div>{syncing&&<span style={{fontSize:10,color:"#a3a3a3"}}>Sincronizando…</span>}{conn&&!syncing&&<span style={{fontSize:10,color:"#16a34a",display:"flex",alignItems:"center",gap:3}}><span style={{width:5,height:5,borderRadius:99,background:"#22c55e",display:"inline-block"}}/>Sincronizado con Sheets</span>}</div>
+    <div style={{background:"#fff",borderRadius:10,border:"1px solid #f0f0f0",overflow:"hidden",marginBottom:16}}><table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}><thead><tr style={{borderBottom:"1px solid #e5e5e5"}}>{["Nombre","Email","Rol",""].map((h,i)=><th key={i} style={{padding:"10px 14px",textAlign:"left",fontSize:10,fontWeight:600,color:"#a3a3a3",textTransform:"uppercase",width:i===3?40:undefined}}>{h}</th>)}</tr></thead><tbody>{users.map((u,i)=>{const rc=ROLE_COLORS[u.role];return<tr key={i} style={{borderBottom:"1px solid #f5f5f5"}}><td style={{padding:"8px 14px",fontWeight:500}}>{u.name}</td><td style={{padding:"8px 14px",color:"#737373",fontFamily:"'JetBrains Mono',monospace",fontSize:11}}>{u.email}</td><td style={{padding:"8px 14px"}}><select value={u.role} onChange={e=>changeRole(u,e.target.value)} style={{appearance:"none",WebkitAppearance:"none",fontSize:10,fontWeight:600,color:rc,background:rc+"15",border:"1px solid "+rc+"40",padding:"2px 8px",borderRadius:4,cursor:"pointer",fontFamily:"'Sora',sans-serif"}}><option value="cm">Comercial</option><option value="ops">Operaciones</option><option value="admin">Administrador</option></select></td><td style={{padding:"8px 14px"}}>{!be.has(u.email.toLowerCase())&&<button onClick={()=>delU(i)} style={{background:"none",border:"none",cursor:"pointer",color:"#e0e0e0",padding:2}} onMouseEnter={e=>e.currentTarget.style.color="#dc2626"} onMouseLeave={e=>e.currentTarget.style.color="#e0e0e0"}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>}</td></tr>})}</tbody></table></div>
     <div style={SL}>Agregar</div><div style={{display:"flex",gap:8,alignItems:"flex-end"}}><div style={{flex:1}}><label style={FL}>Nombre</label><input value={nn} onChange={e=>setNn(e.target.value)} placeholder="Nombre" style={I}/></div><div style={{flex:1.5}}><label style={FL}>Email</label><input value={ne} onChange={e=>setNe(e.target.value)} placeholder="email@co-work.cl" style={I}/></div><div style={{flex:0.8}}><label style={FL}>Rol</label><select value={nr} onChange={e=>setNr(e.target.value)} style={{...I,cursor:"pointer"}}><option value="cm">Comercial</option><option value="ops">Operaciones</option><option value="admin">Administrador</option></select></div><button onClick={addU} disabled={!nn.trim()||!ne.trim()} style={{...BP,padding:"8px 16px",opacity:nn.trim()&&ne.trim()?1:0.35}}>Agregar</button></div></div>}
   </div>);
 }
@@ -204,7 +217,7 @@ export default function App(){
   const[conn,setConn]=useState(false);const[err,setErr]=useState(null);
   const savRef=useRef(false);const pendingRef=useRef(null);
 
-  useEffect(()=>{if(!user)return;async function ld(){if(isConfigured()){try{const ok=await testConnection();if(ok){setConn(true);const d=await fetchAllTickets();setItems(d);d.forEach(t=>{if(t.provider)saveProv(t.provider)})}else setItems(DEMO)}catch(e){console.error(e);setItems(DEMO)}}else setItems(DEMO);setLoading(false)}ld()},[user]);
+  useEffect(()=>{if(!user)return;async function ld(){if(isConfigured()){try{const ok=await testConnection();if(ok){setConn(true);const[d,cfg]=await Promise.all([fetchAllTickets(),fetchConfig().catch(()=>[])]);setItems(d);d.forEach(t=>{if(t.provider)saveProv(t.provider)});if(cfg.length){const sedeCM=parseSedeCM(cfg);const extras=parseExtraUsers(cfg);const roleOvr=parseRoleOverrides(cfg);localStorage.setItem("cw_sede_cm",JSON.stringify(sedeCM));setRoleOverrides(roleOvr);const be=new Set(USERS.map(u=>u.email.toLowerCase()));setSavedUsers(extras.filter(u=>!be.has(u.email.toLowerCase())))}}else setItems(DEMO)}catch(e){console.error(e);setItems(DEMO)}}else setItems(DEMO);setLoading(false)}ld()},[user]);
   useEffect(()=>{if(!conn)return;const iv=setInterval(async()=>{if(savRef.current)return;try{const d=await fetchAllTickets();setItems(d)}catch(e){console.error(e)}},30000);return()=>clearInterval(iv)},[conn]);
 
   const persist=async u=>{if(!conn)return;savRef.current=true;setSaving(true);try{await updateTicket(u)}catch(e){console.error(e);setErr("Error al guardar");setTimeout(()=>setErr(null),3000)}finally{setSaving(false);savRef.current=false}};
@@ -295,7 +308,7 @@ export default function App(){
         {/* Content */}
         <div style={{flex:1,display:"flex",minHeight:0,overflow:"hidden"}}>
           {tab==="inv"&&<Inventario user={user} conn={conn}/>}
-          {tab==="dash"&&<Dashboard items={items} onBack={()=>setTab("mant")}/>}
+          {tab==="dash"&&<Dashboard items={items} onBack={()=>setTab("mant")} conn={conn}/>}
           {tab==="mant"&&<div style={{flex:1,display:"flex",gap:12,padding:"16px 20px",overflowX:"auto",minHeight:0}}>
             {COLUMNS.filter(c=>c.id!=="finalizado").map(col=><Col key={col.id} col={col} items={filt.filter(i=>i.stage===col.id).sort((a,b)=>{const o={Urgente:0,Alta:1,Media:2,Baja:3};return o[a.priority]-o[b.priority]})} onOpen={setSel} onDragStart={()=>{}} onDrop={handleDrop} dragOverCol={dragCol} setDragOverCol={setDragCol}/>)}
             <Col col={{id:"finalizado",label:"Finalizado - Pendiente",icon:"\u23f3",sub:"Pago pendiente"}} items={filt.filter(i=>i.stage==="finalizado"&&i.payment!=="100").sort((a,b)=>{const o={Urgente:0,Alta:1,Media:2,Baja:3};return o[a.priority]-o[b.priority]})} onOpen={setSel} onDragStart={()=>{}} onDrop={handleDrop} dragOverCol={dragCol} setDragOverCol={setDragCol}/>

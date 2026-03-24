@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { INVENTARIO_CATALOG, INVENTARIO_SEDES } from "./inventario_catalog.js";
 import { INVENTARIO_EXCEL_LATEST, INVENTARIO_EXCEL_TREND } from "./inventario_history.js";
 import { fetchInventario, saveInventarioRegistro } from "./inventario_sheets.js";
+import { upsertConfig } from "./config_sheets.js";
 import { USERS, today } from "./constants.js";
 
 // ── Shared styles ────────────────────────────────────────────────────────────
@@ -400,7 +401,7 @@ function InventarioAdmin({ records, user, conn, onSaved }) {
             <FormRegistro sede={previewSede} latestMap={latestMap} user={user} conn={conn} onSaved={onSaved}/>
           </div>
         )}
-        {tab==="directorio"&&<DirectorioCM/>}
+        {tab==="directorio"&&<DirectorioCM conn={conn}/>}
       </div>
     </div>
   );
@@ -617,18 +618,43 @@ function HistorialSede({ sede, records, latestMap }) {
 }
 
 // ── Directorio ─────────────────────────────────────────────────────────────────
-function DirectorioCM() {
+function DirectorioCM({ conn }) {
   const [map, setMap] = useState(getSedeCMMap());
-  const cmUsers = USERS.filter(u=>u.role==="cm").sort((a,b)=>a.name.localeCompare(b.name));
+  const [syncing, setSyncing] = useState(null); // email being synced
+  // Show all users (including those with role overrides applied at app load)
+  const allUsers = useMemo(() => {
+    try { return JSON.parse(localStorage.getItem("cw_users_extra")||"[]"); } catch { return []; }
+  }, []);
+  const baseUsers = USERS;
+  const be = new Set(baseUsers.map(u=>u.email.toLowerCase()));
+  const extra = allUsers.filter(u=>!be.has(u.email.toLowerCase()));
+  const cmUsers = [...baseUsers,...extra].filter(u=>u.role==="cm").sort((a,b)=>a.name.localeCompare(b.name));
+
+  const handleChange = async (email, sede) => {
+    const next = { ...map, [email.toLowerCase()]: sede||null };
+    setSedeCMMap(next);
+    setMap(next);
+    if (conn) {
+      setSyncing(email);
+      try { await upsertConfig("sede_cm", email.toLowerCase(), sede||""); }
+      catch(e) { console.error(e); }
+      finally { setSyncing(null); }
+    }
+  };
+
   return (
     <div style={{ padding:"20px 24px" }}>
-      <div style={{ background:"#fffbeb",border:"1px solid #fde68a",borderRadius:8,padding:"10px 14px",fontSize:11,color:"#92400e",marginBottom:16 }}>
-        La asignación de sedes se guarda <strong>localmente en este dispositivo</strong>. Cada administrador debe asignar sedes desde el dispositivo donde gestiona la app, o desde el dispositivo de cada comercial.
+      <div style={{ display:"flex",alignItems:"center",gap:8,marginBottom:12 }}>
+        <div style={{ fontSize:9,fontWeight:700,color:"#b3b3b3",textTransform:"uppercase",letterSpacing:"0.06em" }}>Asignación de sedes ({cmUsers.length} comerciales)</div>
+        {conn
+          ? <span style={{ fontSize:10,color:"#16a34a",display:"flex",alignItems:"center",gap:3 }}><span style={{ width:5,height:5,borderRadius:99,background:"#22c55e",display:"inline-block" }}/>Sincronizado con Sheets</span>
+          : <span style={{ fontSize:10,color:"#f59e0b" }}>Solo local (sin conexión a Sheets)</span>
+        }
       </div>
-      <div style={{ fontSize:9,fontWeight:700,color:"#b3b3b3",textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:10 }}>Comerciales ({cmUsers.length})</div>
       <div style={{ background:"#fff",border:"1px solid #f0f0f0",borderRadius:10,overflow:"hidden" }}>
         {cmUsers.map((u,i)=>{
           const asignada=map[u.email.toLowerCase()]||"";
+          const isSyncing=syncing===u.email;
           return (
             <div key={u.email} style={{ display:"flex",alignItems:"center",gap:12,padding:"10px 16px",borderBottom:i<cmUsers.length-1?"1px solid #f5f5f5":"none" }}>
               <div style={{ width:30,height:30,borderRadius:99,background:"#eff6ff",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:600,color:"#3b82f6",flexShrink:0 }}>{u.name.charAt(0)}</div>
@@ -636,7 +662,8 @@ function DirectorioCM() {
                 <div style={{ fontSize:12,fontWeight:500 }}>{u.name}</div>
                 <div style={{ fontSize:10,color:"#a3a3a3" }}>{u.email}</div>
               </div>
-              <select value={asignada} onChange={e=>{const next={...map,[u.email.toLowerCase()]:e.target.value||null};setSedeCMMap(next);setMap(next);}} style={{ ...I,width:200,cursor:"pointer" }}>
+              {isSyncing && <span style={{ fontSize:10,color:"#a3a3a3" }}>Guardando…</span>}
+              <select value={asignada} onChange={e=>handleChange(u.email, e.target.value)} style={{ ...I,width:200,cursor:"pointer",opacity:isSyncing?0.5:1 }} disabled={isSyncing}>
                 <option value="">Sin sede</option>
                 {INVENTARIO_SEDES.map(s=><option key={s} value={s}>{s}</option>)}
               </select>
