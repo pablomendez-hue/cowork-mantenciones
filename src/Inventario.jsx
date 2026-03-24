@@ -75,11 +75,43 @@ const CAT_ORDER = ["Aseo","Cafetería","Papelería"];
 const CAT_COLORS = { "Aseo":"#3b82f6","Cafetería":"#f97316","Papelería":"#8b5cf6" };
 const SUBCAT_ORDER = [null,"Corporate Coffee","Café Caribe"];
 
+// Products that appear under wrong category — override to canonical category
+const CAT_FIX = {
+  "Aceite de Oliva":"Cafetería","Aceto Balsámico":"Cafetería",
+  "Café Granulado":"Cafetería","Vinagre":"Cafetería",
+  "Papel Higiénico":"Papelería","Papel Interfoliado":"Papelería","Toalla de Papel":"Papelería"
+};
+function finalCat(p){ return CAT_FIX[p.producto]||p.categoria; }
+
 function getMinStock(sede,proveedor,producto) {
   const c=(INVENTARIO_CATALOG[sede]||[]).find(p=>p.proveedor===proveedor&&p.producto===producto);
   if(c)return c.min_stock;
   const e=getExtraProds(sede).find(p=>p.proveedor===proveedor&&p.producto===producto);
   return e?.min_stock??null;
+}
+
+// Product-level lookups (aggregate across all providers for a given product name)
+function getMinStockByProd(sede,producto){
+  const c=(INVENTARIO_CATALOG[sede]||[]).find(p=>p.producto===producto);
+  if(c)return c.min_stock;
+  const e=getExtraProds(sede).find(p=>p.producto===producto);
+  return e?.min_stock??null;
+}
+function getLatestByProd(sede,producto,latestMap){
+  let best=null;
+  for(const[k,v]of Object.entries(latestMap)){
+    const parts=k.split("||");
+    if(parts[0]===sede&&parts[2]===producto){if(!best||v.fecha>best.fecha)best=v;}
+  }
+  return best;
+}
+function getTrendByProd(sede,producto,trendMap){
+  const dm={};
+  for(const[k,entries]of Object.entries(trendMap)){
+    const parts=k.split("||");
+    if(parts[0]===sede&&parts[2]===producto){for(const[f,q]of entries)dm[f]=(dm[f]||0)+q;}
+  }
+  return Object.entries(dm).sort((a,b)=>a[0].localeCompare(b[0])).slice(-12);
 }
 
 // ── All unique products grouped by categoria + subcategoria ───────────────────
@@ -88,18 +120,17 @@ function getAllProductsGrouped() {
   const groups = {};
   for (const prods of Object.values(INVENTARIO_CATALOG)) {
     for (const p of prods) {
-      const key = `${p.categoria}||${p.subcategoria||""}||${p.proveedor}||${p.producto}`;
+      const cat = finalCat(p);
+      const key = `${cat}||${p.producto}`;
       if (seen.has(key)) continue;
       seen.add(key);
-      const cat = p.categoria;
       const sub = p.subcategoria || null;
       if (!groups[cat]) groups[cat] = {};
       const subKey = sub || "_general";
       if (!groups[cat][subKey]) groups[cat][subKey] = [];
-      groups[cat][subKey].push({ proveedor:p.proveedor, producto:p.producto, subcategoria:sub });
+      groups[cat][subKey].push({ producto:p.producto, subcategoria:sub });
     }
   }
-  // sort products within each group
   for (const cat of Object.keys(groups)) {
     for (const sub of Object.keys(groups[cat])) {
       groups[cat][sub].sort((a,b)=>a.producto.localeCompare(b.producto));
@@ -163,12 +194,55 @@ function SparkCM({ data, breakeven, width=220, height=32 }) {
 // SEDE DETAIL PANEL
 // ══════════════════════════════════════════════════════════════════════════════
 function SedePanel({ sede, latestMap, trendMap, onClose }) {
-  const prods = INVENTARIO_CATALOG[sede] || [];
-  const cats = CAT_ORDER.filter(c=>prods.some(p=>p.categoria===c));
+  const [showOK, setShowOK] = useState(false);
+  const rawProds = INVENTARIO_CATALOG[sede] || [];
+
+  // Deduplicate products for this sede using canonical category
+  const seenProds = new Set();
+  const uniqProds = [];
+  for(const p of rawProds){
+    const cat=finalCat(p);
+    const key=`${cat}||${p.producto}`;
+    if(!seenProds.has(key)){seenProds.add(key);uniqProds.push({...p,categoria:cat});}
+  }
+
+  const prodStatus = uniqProds.map(p=>{
+    const entry=getLatestByProd(sede,p.producto,latestMap);
+    const trend=getTrendByProd(sede,p.producto,trendMap);
+    const min=getMinStockByProd(sede,p.producto);
+    const med=trend.length?median(trend.map(([,v])=>v)):0;
+    const level=getLevel(entry?.cantidad??null,min);
+    return {...p,entry,trend,min,med,level,cantidad:entry?.cantidad??null};
+  });
+
+  const pedir = prodStatus.filter(p=>p.level==="rojo"||p.level==="amarillo"||(p.med>0&&(p.cantidad||0)<p.med));
+  const ok    = prodStatus.filter(p=>!(p.level==="rojo"||p.level==="amarillo"||(p.med>0&&(p.cantidad||0)<p.med)));
 
   const lastDate = Object.entries(latestMap)
     .filter(([k])=>k.startsWith(sede+"||"))
     .map(([,v])=>v.fecha).sort().reverse()[0];
+
+  const ProdCard = ({p}) => {
+    const cs=CELL_STYLE[p.level];
+    return (
+      <div style={{ marginBottom:8,padding:"9px 12px",background:p.level==="ok"?"#fafafa":cs.background,borderRadius:8,border:`1px solid ${p.level==="rojo"?"#fecaca":p.level==="amarillo"?"#fde68a":"#f0f0f0"}` }}>
+        <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:4 }}>
+          <div style={{ fontSize:11,fontWeight:500,color:"#1a1a1a" }}>{p.producto}</div>
+          <div style={{ fontSize:14,fontWeight:700,fontFamily:"'JetBrains Mono',monospace",color:cs.color }}>
+            {p.cantidad!=null?p.cantidad:<span style={{ color:"#d4d4d4",fontSize:11 }}>sin dato</span>}
+          </div>
+        </div>
+        <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between" }}>
+          <div style={{ fontSize:9,color:"#b3b3b3" }}>
+            mín <strong>{p.min}</strong>
+            {p.med>0&&<span style={{ color:"#a78bfa",marginLeft:5 }}>eq. {Math.round(p.med)}</span>}
+            {p.entry&&<span style={{ marginLeft:5 }}>· {fdate(p.entry.fecha)}</span>}
+          </div>
+          <Spark data={p.trend} min_stock={p.min}/>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div style={{ width:380,flexShrink:0,borderLeft:"1px solid #f0f0f0",display:"flex",flexDirection:"column",background:"#fff",height:"100%" }}>
@@ -184,50 +258,32 @@ function SedePanel({ sede, latestMap, trendMap, onClose }) {
       </div>
       {/* Products */}
       <div style={{ flex:1,overflowY:"auto",padding:"12px 18px" }}>
-        {cats.map(cat=>{
-          const catProds = prods.filter(p=>p.categoria===cat);
-          const subcats = [...new Set(catProds.map(p=>p.subcategoria||"_general"))];
-          return (
-            <div key={cat} style={{ marginBottom:20 }}>
-              <div style={{ fontSize:10,fontWeight:700,color:CAT_COLORS[cat],textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:8,display:"flex",alignItems:"center",gap:6 }}>
-                <span style={{ width:6,height:6,borderRadius:99,background:CAT_COLORS[cat],display:"inline-block" }}/>
-                {cat}
-              </div>
-              {subcats.map(sub=>{
-                const subProds = catProds.filter(p=>(p.subcategoria||"_general")===sub);
-                return (
-                  <div key={sub}>
-                    {sub!=="_general" && <div style={{ fontSize:9,color:"#a3a3a3",fontWeight:600,textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:4,marginTop:8 }}>{sub}</div>}
-                    {subProds.map(p=>{
-                      const key=`${sede}||${p.proveedor}||${p.producto}`;
-                      const entry=latestMap[key];
-                      const trend=trendMap[key];
-                      const level=getLevel(entry?.cantidad??null,p.min_stock);
-                      const cs=CELL_STYLE[level];
-                      return (
-                        <div key={key} style={{ marginBottom:10,padding:"10px 12px",background:level==="ok"?"#fafafa":cs.background,borderRadius:8,border:`1px solid ${level==="rojo"?"#fecaca":level==="amarillo"?"#fde68a":"#f0f0f0"}` }}>
-                          <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6 }}>
-                            <div style={{ fontSize:11,fontWeight:500,color:"#1a1a1a" }}>{p.producto}</div>
-                            <div style={{ fontSize:14,fontWeight:700,fontFamily:"'JetBrains Mono',monospace",color:cs.color }}>
-                              {entry?.cantidad??<span style={{ color:"#d4d4d4",fontSize:11 }}>sin dato</span>}
-                            </div>
-                          </div>
-                          <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between" }}>
-                            <div style={{ fontSize:9,color:"#b3b3b3" }}>
-                              mín <strong>{p.min_stock}</strong>
-                              {entry&&<span style={{ marginLeft:6 }}>· {fdate(entry.fecha)}</span>}
-                            </div>
-                            <Spark data={trend} min_stock={p.min_stock}/>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                );
-              })}
+        {/* Pedir section */}
+        {pedir.length>0&&(
+          <div style={{ marginBottom:16 }}>
+            <div style={{ fontSize:10,fontWeight:700,color:"#dc2626",textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:8,display:"flex",alignItems:"center",gap:6 }}>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/></svg>
+              Pedir ({pedir.length})
             </div>
-          );
-        })}
+            {pedir.map(p=><ProdCard key={p.producto} p={p}/>)}
+          </div>
+        )}
+        {pedir.length===0&&(
+          <div style={{ display:"flex",alignItems:"center",gap:8,padding:"10px 12px",background:"#f0fdf4",borderRadius:8,marginBottom:16,border:"1px solid #bbf7d0" }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            <span style={{ fontSize:11,color:"#16a34a",fontWeight:500 }}>Todo en orden — sin productos a pedir</span>
+          </div>
+        )}
+        {/* OK section (collapsible) */}
+        {ok.length>0&&(
+          <div>
+            <button onClick={()=>setShowOK(v=>!v)} style={{ background:"none",border:"none",cursor:"pointer",padding:0,display:"flex",alignItems:"center",gap:5,marginBottom:8,fontFamily:"'Sora',sans-serif" }}>
+              <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#a3a3a3" strokeWidth="2.5">{showOK?<polyline points="18 15 12 9 6 15"/>:<polyline points="6 9 12 15 18 9"/>}</svg>
+              <span style={{ fontSize:10,fontWeight:600,color:"#a3a3a3",textTransform:"uppercase",letterSpacing:"0.05em" }}>OK ({ok.length})</span>
+            </button>
+            {showOK&&ok.map(p=><ProdCard key={p.producto} p={p}/>)}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -298,16 +354,16 @@ function MatrixTable({ latestMap, filtCat, onSedeClick, activeSedeCol }) {
                         </tr>
                       )}
                       {prods.map(p=>(
-                        <tr key={p.proveedor+"||"+p.producto}
+                        <tr key={p.producto}
                           onMouseEnter={e=>e.currentTarget.style.background="#fafafa"}
                           onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
                           <td style={{ ...TH,position:"sticky",left:0,background:"inherit",fontWeight:500,fontSize:12,color:"#1a1a1a",borderRight:"1px solid #f0f0f0",borderBottom:"1px solid #f5f5f5" }}>
                             {p.producto}
                           </td>
                           {sedes.map(sede=>{
-                            const min=getMinStock(sede,p.proveedor,p.producto);
+                            const min=getMinStockByProd(sede,p.producto);
                             if (min===null) return <td key={sede} style={{ ...TD,color:"#efefef" }}>·</td>;
-                            const entry=latestMap[`${sede}||${p.proveedor}||${p.producto}`];
+                            const entry=getLatestByProd(sede,p.producto,latestMap);
                             const level=getLevel(entry?.cantidad??null,min);
                             const cs=CELL_STYLE[level];
                             return (
@@ -686,7 +742,7 @@ function InventarioCM({ user, records, onSaved, conn }) {
           {navBtn("historial","Historial")}
         </div>
       </div>
-      <div style={{ flex:1,overflowY:"auto",padding:"20px 24px" }}>
+      <div style={{ flex:1,overflowY:"auto",overflowX:"auto",padding:"20px 24px" }}>
         {tab==="registrar"&&<FormRegistro sede={sede} latestMap={latestMap} trendMap={trendMap} user={user} conn={conn} onSaved={onSaved}/>}
         {tab==="historial"&&<HistorialSede sede={sede} records={records} latestMap={latestMap}/>}
       </div>

@@ -6,7 +6,7 @@ import { fetchInventario } from "./inventario_sheets.js";
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function getCached(){try{return JSON.parse(localStorage.getItem("cw_inv_cache")||"[]")}catch{return[]}}
 function getLevel(qty,min){if(qty==null)return"nd";if(qty<=0)return"rojo";if(qty<=min)return"amarillo";return"ok"}
-function getMinStk(sede,prov,prod){return(INVENTARIO_CATALOG[sede]||[]).find(p=>p.proveedor===prov&&p.producto===prod)?.min_stock??null}
+function getMinStk(sede,prod){return(INVENTARIO_CATALOG[sede]||[]).find(p=>p.producto===prod)?.min_stock??null}
 function fdate(d){if(!d)return"—";return new Date(d+"T12:00:00").toLocaleDateString("es-CL",{day:"2-digit",month:"short"})}
 function median(arr){if(!arr.length)return 0;const s=[...arr].sort((a,b)=>a-b);const h=Math.floor(s.length/2);return s.length%2?s[h]:(s[h-1]+s[h])/2}
 
@@ -32,30 +32,41 @@ function buildTrend(live){
   return m;
 }
 
+// Products that appear under wrong category — canonical override
+const CAT_FIX={"Aceite de Oliva":"Cafetería","Aceto Balsámico":"Cafetería","Café Granulado":"Cafetería","Vinagre":"Cafetería","Papel Higiénico":"Papelería","Papel Interfoliado":"Papelería","Toalla de Papel":"Papelería"};
+function fcat(p){return CAT_FIX[p.producto]||p.categoria;}
+
 function getAllProds(){
   const seen=new Set(),out=[];
   for(const sp of Object.values(INVENTARIO_CATALOG)){
     for(const p of sp){
-      const k=`${p.proveedor}||${p.producto}`;
-      if(!seen.has(k)){seen.add(k);out.push({proveedor:p.proveedor,producto:p.producto,categoria:p.categoria,subcategoria:p.subcategoria||null});}
+      const cat=fcat(p);
+      const k=`${cat}||${p.producto}`;
+      if(!seen.has(k)){seen.add(k);out.push({producto:p.producto,categoria:cat,subcategoria:p.subcategoria||null});}
     }
   }
   return out;
 }
 
-function getStats(prov,prod,latestMap,trendMap){
-  const sedes=INVENTARIO_SEDES.filter(s=>(INVENTARIO_CATALOG[s]||[]).some(p=>p.proveedor===prov&&p.producto===prod));
+function getStats(prod,latestMap,trendMap){
+  const sedes=INVENTARIO_SEDES.filter(s=>(INVENTARIO_CATALOG[s]||[]).some(p=>p.producto===prod));
   const dm={};
   for(const s of sedes){
-    for(const[f,q]of(trendMap[`${s}||${prov}||${prod}`]||[])){dm[f]=(dm[f]||0)+q;}
+    for(const[k,entries]of Object.entries(trendMap)){
+      const parts=k.split("||");
+      if(parts[0]===s&&parts[2]===prod){for(const[f,q]of entries)dm[f]=(dm[f]||0)+q;}
+    }
   }
   const sedeStatus=sedes.map(s=>{
-    const min=getMinStk(s,prov,prod);
-    const e=latestMap[`${s}||${prov}||${prod}`];
-    return{sede:s,cantidad:e?.cantidad??null,min,level:getLevel(e?.cantidad??null,min),fecha:e?.fecha};
+    let best=null;
+    for(const[k,v]of Object.entries(latestMap)){
+      const parts=k.split("||");
+      if(parts[0]===s&&parts[2]===prod){if(!best||v.fecha>best.fecha)best=v;}
+    }
+    const min=getMinStk(s,prod);
+    return{sede:s,cantidad:best?.cantidad??null,min,level:getLevel(best?.cantidad??null,min),fecha:best?.fecha};
   });
   const total=sedeStatus.reduce((s,x)=>s+(x.cantidad||0),0);
-  // Replace the latest date in agg with the real total so chart last point = total actual
   let agg=Object.entries(dm).sort((a,b)=>a[0].localeCompare(b[0])).slice(-12);
   const latestDate=sedeStatus.filter(s=>s.fecha).reduce((d,s)=>s.fecha>d?s.fecha:d,"");
   if(latestDate){
@@ -111,6 +122,7 @@ export default function InventarioStats({conn}){
   const[cat,setCat]=useState("Cafetería");
   const[sub,setSub]=useState("Café Caribe");
   const[exp,setExp]=useState(null);
+  const[view,setView]=useState("charts"); // "charts" | "pedidos"
 
   useEffect(()=>{
     if(!conn)return;
@@ -138,7 +150,7 @@ export default function InventarioStats({conn}){
   const summary=useMemo(()=>{
     let rojo=0,amarillo=0;
     for(const p of filtProds){
-      const{alerts}=getStats(p.proveedor,p.producto,latestMap,trendMap);
+      const{alerts}=getStats(p.producto,latestMap,trendMap);
       for(const s of alerts){if(s.level==="rojo")rojo++;else amarillo++;}
     }
     return{rojo,amarillo};
@@ -176,7 +188,7 @@ export default function InventarioStats({conn}){
             {subcats.map(s=>btnSub(s,s))}
           </div>
         </>}
-        <div style={{marginLeft:"auto",display:"flex",gap:12,alignItems:"center"}}>
+        <div style={{marginLeft:"auto",display:"flex",gap:8,alignItems:"center"}}>
           {summary.rojo>0&&<span style={{fontSize:11,display:"flex",alignItems:"center",gap:4}}>
             <span style={{width:6,height:6,borderRadius:99,background:"#ef4444",display:"inline-block"}}/>
             <strong style={{color:"#dc2626",fontFamily:"'JetBrains Mono',monospace"}}>{summary.rojo}</strong>
@@ -187,16 +199,24 @@ export default function InventarioStats({conn}){
             <strong style={{color:"#b45309",fontFamily:"'JetBrains Mono',monospace"}}>{summary.amarillo}</strong>
             <span style={{color:"#a3a3a3"}}>bajo mín</span>
           </span>}
+          <span style={{width:1,height:16,background:"#e5e5e5"}}/>
+          {[["charts","Gráficos"],["pedidos","Pedidos"]].map(([v,l])=>(
+            <button key={v} onClick={()=>setView(v)} style={{padding:"4px 10px",fontSize:10,fontWeight:500,cursor:"pointer",borderRadius:5,fontFamily:"'Sora',sans-serif",
+              border:view===v?"none":"1px solid #e5e5e5",background:view===v?"#1a1a1a":"#fff",color:view===v?"#fff":"#737373"}}>{l}</button>
+          ))}
         </div>
       </div>
 
+      {/* Pedidos view */}
+      {view==="pedidos"&&<PedidosView allProds={allProds} cat={cat} sub={sub} latestMap={latestMap} trendMap={trendMap}/>}
+
       {/* Grid */}
-      <div style={{flex:1,overflowY:"auto",padding:"16px 24px"}}>
+      {view==="charts"&&<div style={{flex:1,overflowY:"auto",padding:"16px 24px"}}>
         {filtProds.length===0&&<div style={{textAlign:"center",color:"#d4d4d4",fontSize:12,padding:40}}>Sin productos en esta categoría</div>}
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(340px,1fr))",gap:12}}>
           {filtProds.map(p=>{
-            const k=`${p.proveedor}||${p.producto}`;
-            const st=getStats(p.proveedor,p.producto,latestMap,trendMap);
+            const k=p.producto;
+            const st=getStats(p.producto,latestMap,trendMap);
             const isExp=exp===k;
             const reds=st.alerts.filter(x=>x.level==="rojo").length;
             const ambs=st.alerts.filter(x=>x.level==="amarillo").length;
@@ -209,7 +229,7 @@ export default function InventarioStats({conn}){
                   <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:6}}>
                     <div style={{flex:1,minWidth:0}}>
                       <div style={{fontSize:13,fontWeight:600,color:"#1a1a1a",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{p.producto}</div>
-                      <div style={{fontSize:10,color:"#a3a3a3",marginTop:1}}>{p.proveedor}</div>
+                      {p.subcategoria&&<div style={{fontSize:10,color:"#a3a3a3",marginTop:1}}>{p.subcategoria}</div>}
                     </div>
                     <div style={{textAlign:"right",flexShrink:0,marginLeft:12}}>
                       <div style={{fontSize:24,fontWeight:700,fontFamily:"'JetBrains Mono',monospace",lineHeight:1,color:reds>0?"#dc2626":ambs>0?"#b45309":"#1a1a1a"}}>{Math.round(st.total)}</div>
@@ -289,6 +309,79 @@ export default function InventarioStats({conn}){
             );
           })}
         </div>
+      </div>}
+    </div>
+  );
+}
+
+// ── Pedidos summary view ──────────────────────────────────────────────────────
+function PedidosView({allProds,cat,sub,latestMap,trendMap}){
+  const CAT_ORDER_P=["Cafetería","Aseo","Papelería"];
+  const cats=cat?[cat]:CAT_ORDER_P;
+
+  // Collect all products across selected category that need ordering
+  const orderItems=useMemo(()=>{
+    const prods=allProds.filter(p=>cats.includes(p.categoria)&&(sub===null||p.subcategoria===sub));
+    const items=[];
+    for(const p of prods){
+      const st=getStats(p.producto,latestMap,trendMap);
+      // Include if total < median or any sede has alert
+      const needsOrder=st.total<st.med||st.alerts.length>0;
+      if(needsOrder||st.alerts.length>0){
+        // sedes that need it: alert status OR below median
+        const pedirSedes=st.sedeStatus.filter(s=>
+          s.level==="rojo"||s.level==="amarillo"||(st.med>0&&(s.cantidad||0)<st.med)
+        );
+        if(pedirSedes.length>0)items.push({...p,st,pedirSedes,reds:st.alerts.filter(x=>x.level==="rojo").length,ambs:st.alerts.filter(x=>x.level==="amarillo").length});
+      }
+    }
+    return items.sort((a,b)=>(b.reds-a.reds)||b.ambs-a.ambs||a.producto.localeCompare(b.producto));
+  },[allProds,cats,sub,latestMap,trendMap]);
+
+  if(orderItems.length===0)return(
+    <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:8}}>
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#86efac" strokeWidth="1.5"><polyline points="20 6 9 17 4 12"/></svg>
+      <div style={{fontSize:13,color:"#16a34a",fontWeight:500}}>Todo en orden</div>
+      <div style={{fontSize:11,color:"#a3a3a3"}}>No hay productos para pedir en esta categoría</div>
+    </div>
+  );
+
+  return(
+    <div style={{flex:1,overflowY:"auto",padding:"16px 24px"}}>
+      <div style={{marginBottom:12,fontSize:11,color:"#a3a3a3"}}>{orderItems.length} producto{orderItems.length!==1?"s":""} para pedir</div>
+      <div style={{display:"flex",flexDirection:"column",gap:8}}>
+        {orderItems.map(p=>(
+          <div key={p.producto} style={{background:"#fff",border:"1px solid #f0f0f0",borderRadius:10,overflow:"hidden",
+            borderLeft:`3px solid ${p.reds>0?"#ef4444":p.ambs>0?"#f59e0b":"#6366f1"}`}}>
+            <div style={{padding:"10px 14px",display:"flex",alignItems:"flex-start",gap:12}}>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:13,fontWeight:600,color:"#1a1a1a"}}>{p.producto}</div>
+                {p.subcategoria&&<div style={{fontSize:10,color:"#a3a3a3",marginTop:1}}>{p.subcategoria}</div>}
+              </div>
+              <div style={{textAlign:"right",flexShrink:0}}>
+                <div style={{fontSize:20,fontWeight:700,fontFamily:"'JetBrains Mono',monospace",lineHeight:1,color:p.reds>0?"#dc2626":p.ambs>0?"#b45309":"#6366f1"}}>{Math.round(p.st.total)}</div>
+                <div style={{fontSize:9,color:"#a3a3a3"}}>/ eq. {Math.round(p.st.med)}</div>
+              </div>
+            </div>
+            <div style={{padding:"6px 14px 10px",borderTop:"1px solid #f5f5f5"}}>
+              <div style={{fontSize:9,fontWeight:600,color:"#b3b3b3",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:5}}>Pedir en</div>
+              <div style={{display:"flex",flexWrap:"wrap",gap:4}}>
+                {p.pedirSedes.sort((a,b)=>(a.level==="rojo"?0:a.level==="amarillo"?1:2)-(b.level==="rojo"?0:b.level==="amarillo"?1:2)).map(s=>{
+                  const isAlert=s.level==="rojo"||s.level==="amarillo";
+                  return(
+                    <span key={s.sede} style={{fontSize:9,fontWeight:500,padding:"2px 8px",borderRadius:4,
+                      background:s.level==="rojo"?"#fef2f2":s.level==="amarillo"?"#fffbeb":"#f5f3ff",
+                      color:s.level==="rojo"?"#dc2626":s.level==="amarillo"?"#b45309":"#6d28d9",
+                      border:`1px solid ${s.level==="rojo"?"#fecaca":s.level==="amarillo"?"#fde68a":"#ddd6fe"}`}}>
+                      {s.sede.length>14?s.sede.slice(0,13)+"…":s.sede}
+                      {s.cantidad!==null&&<span style={{marginLeft:3,opacity:0.65}}>{s.cantidad}</span>}
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );
