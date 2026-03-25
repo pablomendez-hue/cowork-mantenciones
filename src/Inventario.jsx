@@ -633,7 +633,8 @@ function FormRegistro({ sede, latestMap, trendMap, user, conn, onSaved, isPrevie
                           borderBottom:idx<subProds.length-1?"1px dashed #e8e8e8":"none",
                           background:val!==""?"#f7fffe":"transparent",minHeight:42 }}>
                           {/* Col 1: product name */}
-                          <div style={{ width:170,flexShrink:0,padding:"6px 10px",display:"flex",alignItems:"center",gap:6,borderRight:"1px dashed #e0e0e0" }}>
+                          <div style={{ width:170,flexShrink:0,padding:"6px 10px",display:"flex",alignItems:"center",gap:6,borderRight:"1px dashed #e0e0e0",
+                            background:level==="rojo"?"#fef2f2":level==="amarillo"?"#fffbeb":"transparent" }}>
                             <span style={{ width:5,height:5,borderRadius:99,background:dotColor,flexShrink:0 }}/>
                             <div style={{ minWidth:0 }}>
                               <div style={{ fontSize:11,fontWeight:600,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis" }}>{p.producto}</div>
