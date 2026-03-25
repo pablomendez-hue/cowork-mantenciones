@@ -519,23 +519,40 @@ function FormRegistro({ sede, latestMap, trendMap, user, conn, onSaved, isPrevie
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [showAddForm, setShowAddForm] = useState(null);
-  const [newProd, setNewProd] = useState({ producto:"", proveedor:"", min_stock:1 });
+  const [newProd, setNewProd] = useState({ producto:"", min_stock:1 });
   const [extraProds, setExtraProds] = useState(()=>getExtraProds(sede));
 
   // Merge catalog + extra products
   const catalogProds = INVENTARIO_CATALOG[sede]||[];
   const allSedeProds = [...catalogProds];
   for (const ep of extraProds) {
-    if (!allSedeProds.some(p=>p.proveedor===ep.proveedor&&p.producto===ep.producto)) allSedeProds.push(ep);
+    if (!allSedeProds.some(p=>p.producto===ep.producto)) allSedeProds.push(ep);
   }
 
+  // Products from other sedes not yet in this sede (for the "add" dropdown)
+  const availableToAdd = useMemo(()=>{
+    const existing = new Set(allSedeProds.map(p=>p.producto));
+    const seen = new Set();
+    const out = [];
+    for (const prods of Object.values(INVENTARIO_CATALOG)) {
+      for (const p of prods) {
+        if (!existing.has(p.producto)&&!seen.has(p.producto)) {
+          seen.add(p.producto);
+          out.push({...p, categoria:finalCat(p)});
+        }
+      }
+    }
+    return out.sort((a,b)=>a.producto.localeCompare(b.producto));
+  },[allSedeProds]);
+
   const handleAddProd = (cat) => {
-    if (!newProd.producto.trim()) return;
-    const np = { proveedor:newProd.proveedor.trim()||"Otro", producto:newProd.producto.trim(), categoria:cat, subcategoria:null, min_stock:Math.max(1,Number(newProd.min_stock)||1) };
+    if (!newProd.producto) return;
+    const ref = Object.values(INVENTARIO_CATALOG).flat().find(p=>p.producto===newProd.producto);
+    const np = { proveedor:ref?.proveedor||"Otro", producto:newProd.producto, categoria:cat, subcategoria:ref?.subcategoria||null, min_stock:Math.max(1,Number(newProd.min_stock)||1) };
     const updated = [...extraProds, np];
     setExtraProds(updated);
     saveExtraProds(sede, updated);
-    setNewProd({ producto:"", proveedor:"", min_stock:1 });
+    setNewProd({ producto:"", min_stock:1 });
     setShowAddForm(null);
   };
 
@@ -679,32 +696,35 @@ function FormRegistro({ sede, latestMap, trendMap, user, conn, onSaved, isPrevie
                       );
                     })}
                     {/* Add product button */}
-                    {!isPreview&&(
-                      showAddForm===cat?(<div style={{ padding:"10px 14px",borderTop:"1px solid #f0f0f0",background:"#fafafa" }}>
-                        <div style={{ display:"flex",gap:8,alignItems:"flex-end",flexWrap:"wrap" }}>
-                          <div style={{ flex:2,minWidth:120 }}>
-                            <label style={{ fontSize:9,color:"#a3a3a3",display:"block",marginBottom:3,textTransform:"uppercase",letterSpacing:"0.04em" }}>Producto</label>
-                            <input value={newProd.producto} onChange={e=>setNewProd(p=>({...p,producto:e.target.value}))} placeholder="Nombre del producto" style={{ ...I,fontSize:11 }}/>
+                    {!isPreview&&(()=>{
+                      const catAvailable=availableToAdd.filter(p=>p.categoria===cat);
+                      if(!catAvailable.length) return null;
+                      return showAddForm===cat?(
+                        <div style={{ display:"flex",gap:6,alignItems:"center",padding:"7px 12px",borderTop:"1px dashed #e8e8e8",background:"#fafafa" }}>
+                          <select value={newProd.producto} onChange={e=>{
+                            const prod=e.target.value;
+                            const ref=catAvailable.find(p=>p.producto===prod);
+                            setNewProd({producto:prod,min_stock:ref?.min_stock||1});
+                          }} style={{ ...I,flex:1,fontSize:11,fontFamily:"'Consolas','Courier New',monospace",cursor:"pointer" }}>
+                            <option value="">Seleccionar producto…</option>
+                            {catAvailable.map(p=><option key={p.producto} value={p.producto}>{p.producto}</option>)}
+                          </select>
+                          <div style={{ display:"flex",flexDirection:"column",alignItems:"center",gap:1,flexShrink:0 }}>
+                            <label style={{ fontSize:8,color:"#b3b3b3",textTransform:"uppercase",letterSpacing:"0.04em" }}>Mín.</label>
+                            <input type="number" min="1" value={newProd.min_stock} onChange={e=>setNewProd(p=>({...p,min_stock:e.target.value}))} style={{ ...I,width:58,textAlign:"center",fontSize:11,padding:"5px 4px" }}/>
                           </div>
-                          <div style={{ flex:1.5,minWidth:100 }}>
-                            <label style={{ fontSize:9,color:"#a3a3a3",display:"block",marginBottom:3,textTransform:"uppercase",letterSpacing:"0.04em" }}>Proveedor</label>
-                            <input value={newProd.proveedor} onChange={e=>setNewProd(p=>({...p,proveedor:e.target.value}))} placeholder="Proveedor" style={{ ...I,fontSize:11 }}/>
-                          </div>
-                          <div style={{ width:64 }}>
-                            <label style={{ fontSize:9,color:"#a3a3a3",display:"block",marginBottom:3,textTransform:"uppercase",letterSpacing:"0.04em" }}>Mín.</label>
-                            <input type="number" min="1" value={newProd.min_stock} onChange={e=>setNewProd(p=>({...p,min_stock:e.target.value}))} style={{ ...I,fontSize:11 }}/>
-                          </div>
-                          <button onClick={()=>handleAddProd(cat)} disabled={!newProd.producto.trim()} style={{ ...BP,padding:"8px 12px",opacity:newProd.producto.trim()?1:0.35,flexShrink:0 }}>Agregar</button>
-                          <button onClick={()=>setShowAddForm(null)} style={{ background:"none",border:"1px solid #e5e5e5",borderRadius:7,padding:"8px 10px",cursor:"pointer",color:"#a3a3a3",fontSize:12,flexShrink:0 }}>✕</button>
+                          <button onClick={()=>handleAddProd(cat)} disabled={!newProd.producto} style={{ ...BP,padding:"7px 12px",opacity:newProd.producto?1:0.35,flexShrink:0 }}>Agregar</button>
+                          <button onClick={()=>setShowAddForm(null)} style={{ background:"none",border:"1px solid #e5e5e5",borderRadius:7,padding:"7px 9px",cursor:"pointer",color:"#a3a3a3",fontSize:11,flexShrink:0 }}>✕</button>
                         </div>
-                      </div>)
-                      :<div style={{ padding:"6px 14px",borderTop:"1px solid #f5f5f5" }}>
-                        <button onClick={()=>setShowAddForm(cat)} style={{ fontSize:10,color:"#6366f1",background:"none",border:"none",cursor:"pointer",fontFamily:"'Sora',sans-serif",padding:0,display:"flex",alignItems:"center",gap:4 }}>
-                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                          Agregar producto
-                        </button>
-                      </div>
-                    )}
+                      ):(
+                        <div style={{ padding:"5px 12px",borderTop:"1px dashed #e8e8e8" }}>
+                          <button onClick={()=>setShowAddForm(cat)} style={{ fontSize:10,color:"#6366f1",background:"none",border:"none",cursor:"pointer",fontFamily:"'Sora',sans-serif",padding:0,display:"flex",alignItems:"center",gap:4 }}>
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                            Agregar producto
+                          </button>
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
               );
