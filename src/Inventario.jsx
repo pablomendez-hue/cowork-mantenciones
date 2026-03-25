@@ -568,7 +568,7 @@ function FormRegistro({ sede, latestMap, trendMap, user, conn, onSaved, isPrevie
   const filled = Object.values(cantidades).filter(v=>v!==""&&v!==null&&!isNaN(v)).length;
 
   return (
-    <div>
+    <div style={{ fontFamily:"'Consolas','Courier New',monospace" }}>
       <div style={{ display:"flex",gap:10,marginBottom:18,alignItems:"flex-end",flexWrap:"wrap" }}>
         <div>
           <label style={FL}>Tipo de registro</label>
@@ -608,12 +608,13 @@ function FormRegistro({ sede, latestMap, trendMap, user, conn, onSaved, isPrevie
               return (
                 <div key={sk} style={{ marginBottom:12 }}>
                   {sub!==null&&<div style={{ fontSize:9,color:"#a3a3a3",fontWeight:600,textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:4 }}>{sub}</div>}
-                  <div style={{ background:"#fff",border:"1px solid #ebebeb",borderRadius:10,overflow:"hidden" }}>
+                  <div style={{ background:"#fff",border:"1px solid #e5e5e5",borderRadius:10,overflow:"hidden" }}>
                     {/* Table header */}
-                    <div style={{ display:"grid",gridTemplateColumns:"1fr 148px 80px",gap:0,padding:"4px 12px",borderBottom:"1px dotted #e0e0e0",background:"#fafafa" }}>
-                      <span style={{ fontSize:9,color:"#b3b3b3",fontWeight:600,textTransform:"uppercase",letterSpacing:"0.05em" }}>Insumo</span>
-                      <span style={{ fontSize:9,color:"#b3b3b3",fontWeight:600,textTransform:"uppercase",letterSpacing:"0.05em",textAlign:"center" }}>Historial</span>
-                      <span style={{ fontSize:9,color:"#b3b3b3",fontWeight:600,textTransform:"uppercase",letterSpacing:"0.05em",textAlign:"center" }}>Cantidad</span>
+                    <div style={{ display:"flex",borderBottom:"1px dashed #d4d4d4",background:"#fafafa",padding:"3px 0" }}>
+                      <div style={{ width:170,flexShrink:0,padding:"0 10px",fontSize:8,color:"#b3b3b3",textTransform:"uppercase",letterSpacing:"0.05em",display:"flex",alignItems:"center" }}>Insumo</div>
+                      <div style={{ flex:1,minWidth:0,padding:"0 8px",fontSize:8,color:"#b3b3b3",textTransform:"uppercase",letterSpacing:"0.05em",display:"flex",alignItems:"center",borderLeft:"1px dashed #e0e0e0" }}>Últimos 12 registros</div>
+                      <div style={{ width:90,flexShrink:0,padding:"0 8px",fontSize:8,color:"#b3b3b3",textTransform:"uppercase",letterSpacing:"0.05em",display:"flex",alignItems:"center",justifyContent:"center",borderLeft:"1px dashed #e0e0e0" }}>Ingresar</div>
+                      <div style={{ width:195,flexShrink:0,padding:"0 10px",fontSize:8,color:"#b3b3b3",textTransform:"uppercase",letterSpacing:"0.05em",display:"flex",alignItems:"center",borderLeft:"1px dashed #e0e0e0" }}>Gráfico · Mediana</div>
                     </div>
                     {subProds.map((p,idx)=>{
                       const fkey=`${p.proveedor}|||${p.producto}`;
@@ -628,31 +629,51 @@ function FormRegistro({ sede, latestMap, trendMap, user, conn, onSaved, isPrevie
                       const hasHist=histSorted.length>=2;
                       const dotColor=level==="nd"?"#d4d4d4":level==="ok"?"#22c55e":level==="amarillo"?"#f59e0b":"#ef4444";
                       return (
-                        <div key={fkey} style={{ display:"grid",gridTemplateColumns:"1fr 148px 80px",alignItems:"center",gap:0,
-                          borderBottom:idx<subProds.length-1?"1px dotted #ebebeb":"none",
-                          background:val!==""?"#f0fdfb":"transparent",padding:"5px 12px",minHeight:34 }}>
-                          {/* Name + meta */}
-                          <div style={{ display:"flex",alignItems:"center",gap:7,minWidth:0,paddingRight:8 }}>
+                        <div key={fkey} style={{ display:"flex",alignItems:"stretch",
+                          borderBottom:idx<subProds.length-1?"1px dashed #e8e8e8":"none",
+                          background:val!==""?"#f7fffe":"transparent",minHeight:42 }}>
+                          {/* Col 1: product name */}
+                          <div style={{ width:170,flexShrink:0,padding:"6px 10px",display:"flex",alignItems:"center",gap:6,borderRight:"1px dashed #e0e0e0" }}>
                             <span style={{ width:5,height:5,borderRadius:99,background:dotColor,flexShrink:0 }}/>
                             <div style={{ minWidth:0 }}>
-                              <div style={{ fontSize:11,fontWeight:500,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis" }}>{p.producto}</div>
-                              <div style={{ fontSize:9,color:"#b3b3b3",display:"flex",gap:4,flexWrap:"nowrap",alignItems:"center",marginTop:1 }}>
-                                <span>mín {p.min_stock}</span>
-                                {last&&<><span style={{color:"#ddd"}}>·</span><strong style={{ color:cs.color,fontFamily:"'JetBrains Mono',monospace" }}>{last.cantidad}</strong><span style={{color:"#d4d4d4",fontSize:8}}>({fdate(last.fecha)})</span></>}
-                                {be>0&&<><span style={{color:"#ddd"}}>·</span><span style={{ color:"#a78bfa" }}>eq.{Math.round(be)}</span></>}
+                              <div style={{ fontSize:11,fontWeight:600,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis" }}>{p.producto}</div>
+                              <div style={{ fontSize:8,color:"#b3b3b3",marginTop:1 }}>
+                                mín {p.min_stock}{be>0?` · eq.${Math.round(be)}`:""}{last?` · últ.`:""}
+                                {last&&<strong style={{ color:cs.color }}>{last.cantidad}</strong>}
                               </div>
                             </div>
                           </div>
-                          {/* Sparkline */}
-                          <div style={{ display:"flex",alignItems:"center",justifyContent:"center" }}>
-                            {hasHist
-                              ?<SparkCM data={histSorted} breakeven={be} width={136} height={26}/>
-                              :<span style={{ fontSize:9,color:"#e0e0e0",fontStyle:"italic" }}>sin datos</span>}
+                          {/* Col 2: 12 history entries */}
+                          <div style={{ flex:1,minWidth:0,overflowX:"auto",display:"flex",alignItems:"center",borderRight:"1px dashed #e0e0e0" }}>
+                            {histSorted.length===0
+                              ?<span style={{ fontSize:9,color:"#d4d4d4",padding:"0 14px",fontStyle:"italic" }}>sin registros</span>
+                              :histSorted.map(([f,q],i)=>(
+                                <div key={i} style={{ flexShrink:0,textAlign:"center",
+                                  borderRight:i<histSorted.length-1?"1px dashed #f0f0f0":"none",
+                                  padding:"4px 6px",minWidth:44 }}>
+                                  <div style={{ fontSize:8,color:"#a3a3a3",marginBottom:2,whiteSpace:"nowrap" }}>{fdate(f)}</div>
+                                  <div style={{ fontSize:12,fontWeight:700,
+                                    color:q>=be&&be>0?"#16a34a":q>0?"#b45309":"#dc2626",
+                                    fontFamily:"'Consolas','Courier New',monospace" }}>{q}</div>
+                                </div>
+                              ))
+                            }
                           </div>
-                          {/* Input */}
-                          <input type="number" min="0" step="0.5" value={val}
-                            onChange={e=>setCantidades(prev=>({...prev,[fkey]:e.target.value===""?"":parseFloat(e.target.value)}))}
-                            placeholder="—" style={{ ...I,width:"100%",textAlign:"center",padding:"5px 6px",fontSize:12 }}/>
+                          {/* Col 3: new entry input */}
+                          <div style={{ width:90,flexShrink:0,padding:"5px 8px",display:"flex",alignItems:"center",justifyContent:"center",borderRight:"1px dashed #e0e0e0" }}>
+                            <input type="number" min="0" step="0.5" value={val}
+                              onChange={e=>setCantidades(prev=>({...prev,[fkey]:e.target.value===""?"":parseFloat(e.target.value)}))}
+                              placeholder="—" style={{ ...I,width:"100%",textAlign:"center",padding:"5px 4px",fontSize:13,fontFamily:"'Consolas','Courier New',monospace" }}/>
+                          </div>
+                          {/* Col 4: sparkline + median */}
+                          <div style={{ width:195,flexShrink:0,padding:"5px 10px",display:"flex",alignItems:"center",gap:8 }}>
+                            {hasHist&&<SparkCM data={histSorted} breakeven={be} width={140} height={28}/>}
+                            {!hasHist&&<span style={{ fontSize:9,color:"#e0e0e0",fontStyle:"italic" }}>sin datos</span>}
+                            {be>0&&<div style={{ flexShrink:0,textAlign:"center" }}>
+                              <div style={{ fontSize:8,color:"#a3a3a3",marginBottom:1 }}>med.</div>
+                              <div style={{ fontSize:13,fontWeight:700,color:"#6366f1",fontFamily:"'Consolas','Courier New',monospace",lineHeight:1 }}>{Math.round(be)}</div>
+                            </div>}
+                          </div>
                         </div>
                       );
                     })}
