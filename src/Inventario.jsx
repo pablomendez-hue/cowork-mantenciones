@@ -608,7 +608,13 @@ function FormRegistro({ sede, latestMap, trendMap, user, conn, onSaved, isPrevie
               return (
                 <div key={sk} style={{ marginBottom:12 }}>
                   {sub!==null&&<div style={{ fontSize:9,color:"#a3a3a3",fontWeight:600,textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:4 }}>{sub}</div>}
-                  <div style={{ background:"#fff",border:"1px solid #f0f0f0",borderRadius:10,overflow:"hidden" }}>
+                  <div style={{ background:"#fff",border:"1px solid #ebebeb",borderRadius:10,overflow:"hidden" }}>
+                    {/* Table header */}
+                    <div style={{ display:"grid",gridTemplateColumns:"1fr 148px 80px",gap:0,padding:"4px 12px",borderBottom:"1px dotted #e0e0e0",background:"#fafafa" }}>
+                      <span style={{ fontSize:9,color:"#b3b3b3",fontWeight:600,textTransform:"uppercase",letterSpacing:"0.05em" }}>Insumo</span>
+                      <span style={{ fontSize:9,color:"#b3b3b3",fontWeight:600,textTransform:"uppercase",letterSpacing:"0.05em",textAlign:"center" }}>Historial</span>
+                      <span style={{ fontSize:9,color:"#b3b3b3",fontWeight:600,textTransform:"uppercase",letterSpacing:"0.05em",textAlign:"center" }}>Cantidad</span>
+                    </div>
                     {subProds.map((p,idx)=>{
                       const fkey=`${p.proveedor}|||${p.producto}`;
                       const mkey=`${sede}||${p.proveedor}||${p.producto}`;
@@ -620,39 +626,33 @@ function FormRegistro({ sede, latestMap, trendMap, user, conn, onSaved, isPrevie
                       const cs=CELL_STYLE[level];
                       const val=cantidades[fkey]??"";
                       const hasHist=histSorted.length>=2;
+                      const dotColor=level==="nd"?"#d4d4d4":level==="ok"?"#22c55e":level==="amarillo"?"#f59e0b":"#ef4444";
                       return (
-                        <div key={fkey} style={{ borderBottom:idx<subProds.length-1?"1px solid #f5f5f5":"none",background:val!==""?"#f8fffe":"transparent" }}>
-                          <div style={{ display:"flex",alignItems:"flex-start",gap:12,padding:"9px 14px" }}>
-                            <div style={{ width:6,height:6,borderRadius:99,background:CELL_STYLE[level].color==="transparent"?"#d4d4d4":CELL_STYLE[level].color,flexShrink:0,marginTop:4 }}/>
-                            <div style={{ flex:1,minWidth:0 }}>
-                              <div style={{ fontSize:12,fontWeight:500 }}>{p.producto}</div>
-                              <div style={{ fontSize:10,color:"#a3a3a3",marginTop:1,display:"flex",alignItems:"center",gap:5,flexWrap:"wrap" }}>
+                        <div key={fkey} style={{ display:"grid",gridTemplateColumns:"1fr 148px 80px",alignItems:"center",gap:0,
+                          borderBottom:idx<subProds.length-1?"1px dotted #ebebeb":"none",
+                          background:val!==""?"#f0fdfb":"transparent",padding:"5px 12px",minHeight:34 }}>
+                          {/* Name + meta */}
+                          <div style={{ display:"flex",alignItems:"center",gap:7,minWidth:0,paddingRight:8 }}>
+                            <span style={{ width:5,height:5,borderRadius:99,background:dotColor,flexShrink:0 }}/>
+                            <div style={{ minWidth:0 }}>
+                              <div style={{ fontSize:11,fontWeight:500,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis" }}>{p.producto}</div>
+                              <div style={{ fontSize:9,color:"#b3b3b3",display:"flex",gap:4,flexWrap:"nowrap",alignItems:"center",marginTop:1 }}>
                                 <span>mín {p.min_stock}</span>
-                                {last&&<span>· <strong style={{ color:cs.color }}>{last.cantidad}</strong> <span style={{ color:"#d4d4d4" }}>({fdate(last.fecha)})</span></span>}
-                                {be>0&&<span style={{ color:"#a78bfa" }}>· eq. {Math.round(be)}</span>}
+                                {last&&<><span style={{color:"#ddd"}}>·</span><strong style={{ color:cs.color,fontFamily:"'JetBrains Mono',monospace" }}>{last.cantidad}</strong><span style={{color:"#d4d4d4",fontSize:8}}>({fdate(last.fecha)})</span></>}
+                                {be>0&&<><span style={{color:"#ddd"}}>·</span><span style={{ color:"#a78bfa" }}>eq.{Math.round(be)}</span></>}
                               </div>
-                              {hasHist&&<>
-                                <div style={{ marginTop:5 }}>
-                                  <SparkCM data={histSorted} breakeven={be} width={Math.min(220,histSorted.length*20+6)}/>
-                                </div>
-                                <div style={{ display:"flex",gap:2,marginTop:3,flexWrap:"wrap" }}>
-                                  {histSorted.map(([f,q],i)=>(
-                                    <span key={i} title={fdate(f)} style={{
-                                      fontSize:8,fontFamily:"'JetBrains Mono',monospace",
-                                      color:q>=be?"#16a34a":q>0?"#b45309":"#dc2626",
-                                      background:q>=be?"#f0fdf4":q>0?"#fffbeb":"#fef2f2",
-                                      padding:"1px 4px",borderRadius:3,
-                                      fontWeight:i===histSorted.length-1?700:400,
-                                      border:`1px solid ${q>=be?"#bbf7d0":q>0?"#fde68a":"#fecaca"}`
-                                    }}>{q}</span>
-                                  ))}
-                                </div>
-                              </>}
                             </div>
-                            <input type="number" min="0" step="0.5" value={val}
-                              onChange={e=>setCantidades(prev=>({...prev,[fkey]:e.target.value===""?"":parseFloat(e.target.value)}))}
-                              placeholder="—" style={{ ...I,width:80,textAlign:"center",flexShrink:0,marginTop:2}}/>
                           </div>
+                          {/* Sparkline */}
+                          <div style={{ display:"flex",alignItems:"center",justifyContent:"center" }}>
+                            {hasHist
+                              ?<SparkCM data={histSorted} breakeven={be} width={136} height={26}/>
+                              :<span style={{ fontSize:9,color:"#e0e0e0",fontStyle:"italic" }}>sin datos</span>}
+                          </div>
+                          {/* Input */}
+                          <input type="number" min="0" step="0.5" value={val}
+                            onChange={e=>setCantidades(prev=>({...prev,[fkey]:e.target.value===""?"":parseFloat(e.target.value)}))}
+                            placeholder="—" style={{ ...I,width:"100%",textAlign:"center",padding:"5px 6px",fontSize:12 }}/>
                         </div>
                       );
                     })}
