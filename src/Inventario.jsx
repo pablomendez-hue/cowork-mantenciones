@@ -610,7 +610,7 @@ function FormRegistro({ sede, latestMap, trendMap, user, conn, onSaved, isPrevie
   };
 
   const productos = allSedeProds;
-  const cats = CAT_ORDER.filter(c=>productos.some(p=>p.categoria===c));
+  const cats = CAT_ORDER.filter(c=>productos.some(p=>p.categoria===c)||availableToAdd.some(p=>p.categoria===c));
 
   const handleGuardar = async () => {
     const entries = Object.entries(cantidades).filter(([,v])=>v!==""&&v!==null&&!isNaN(v));
@@ -658,6 +658,34 @@ function FormRegistro({ sede, latestMap, trendMap, user, conn, onSaved, isPrevie
               <span style={{ width:7,height:7,borderRadius:99,background:CAT_COLORS[cat],display:"inline-block" }}/>
               <span style={{ fontSize:9,fontWeight:700,color:CAT_COLORS[cat],textTransform:"uppercase",letterSpacing:"0.06em" }}>{cat}</span>
             </div>
+            {/* Empty sede: show add button directly at category level */}
+            {!isPreview&&catProds.length===0&&(()=>{
+              const catAvailable=availableToAdd.filter(p=>p.categoria===cat);
+              if(!catAvailable.length) return null;
+              return showAddForm===cat?(
+                <div style={{ display:"flex",gap:6,alignItems:"center",padding:"10px 12px",background:"#fafafa",border:"1px solid #e5e5e5",borderRadius:10 }}>
+                  <select value={newProd.producto} onChange={e=>{
+                    const prod=e.target.value;
+                    const ref=catAvailable.find(p=>p.producto===prod);
+                    setNewProd({producto:prod,min_stock:ref?.min_stock||1});
+                  }} style={{ ...I,flex:1,fontSize:11,cursor:"pointer" }}>
+                    <option value="">Seleccionar producto…</option>
+                    {catAvailable.map(p=><option key={p.producto} value={p.producto}>{p.producto}</option>)}
+                  </select>
+                  <div style={{ display:"flex",flexDirection:"column",alignItems:"center",gap:1,flexShrink:0 }}>
+                    <label style={{ fontSize:8,color:"#b3b3b3",textTransform:"uppercase",letterSpacing:"0.04em" }}>Mín.</label>
+                    <input type="number" min="1" value={newProd.min_stock} onChange={e=>setNewProd(p=>({...p,min_stock:e.target.value}))} style={{ ...I,width:58,textAlign:"center",fontSize:11,padding:"5px 4px" }}/>
+                  </div>
+                  <button onClick={()=>handleAddProd(cat)} disabled={!newProd.producto} style={{ ...BP,padding:"7px 12px",opacity:newProd.producto?1:0.35,flexShrink:0 }}>Agregar</button>
+                  <button onClick={()=>setShowAddForm(null)} style={{ background:"none",border:"1px solid #e5e5e5",borderRadius:7,padding:"7px 9px",cursor:"pointer",color:"#a3a3a3",fontSize:11,flexShrink:0 }}>✕</button>
+                </div>
+              ):(
+                <button onClick={()=>setShowAddForm(cat)} style={{ fontSize:10,color:"#6366f1",background:"none",border:"1px dashed #c4b5fd",borderRadius:6,padding:"6px 12px",cursor:"pointer",fontFamily:"'Sora',sans-serif",display:"flex",alignItems:"center",gap:4 }}>
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                  Agregar primer producto de {cat}
+                </button>
+              );
+            })()}
             {subcats.map(sub=>{
               const sk = sub===null?"_general":sub;
               const subProds = catProds.filter(p=>(p.subcategoria||"_general")===sk||(!p.subcategoria&&sub===null));
