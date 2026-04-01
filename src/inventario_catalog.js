@@ -403,5 +403,11 @@ export const INVENTARIO_CATALOG = {
     { proveedor: "Cafetería", producto: "Vinagre", min_stock: 1, categoria: "Cafetería" },
     { proveedor: "Café Caribe", producto: "Café Grano (KG)", min_stock: 4, categoria: "Cafetería", subcategoria: "Café Caribe" },
   ],
+  "Chery": [],
+  "Coldwell": [],
+  "Liquidos": [],
+  "Londres 43 - PPD": [],
+  "S2GO": [],
+  "Salesforce": [],
 };
-export const INVENTARIO_SEDES = ["Abedules", "Alto el Golf", "Apoquindo", "Cerro el Plomo", "Florida Center", "Isidora", "Kennedy", "Los Militares - NACE", "Manuel Montt", "Monjitas", "Neohaus", "Nueva Las Condes", "Plaza Egaña", "Santa Lucia", "Santa Rosa", "Suecia", "Tobalaba-P3", "Vespucio"];
+export const INVENTARIO_SEDES = ["Abedules", "Alto el Golf", "Apoquindo", "Cerro el Plomo", "Chery", "Coldwell", "Florida Center", "Isidora", "Kennedy", "Liquidos", "Londres 43 - PPD", "Los Militares - NACE", "Manuel Montt", "Monjitas", "Neohaus", "Nueva Las Condes", "Plaza Egaña", "S2GO", "Salesforce", "Santa Lucia", "Santa Rosa", "Suecia", "Tobalaba-P3", "Vespucio"];

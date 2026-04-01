@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { INVENTARIO_CATALOG, INVENTARIO_SEDES } from "./inventario_catalog.js";
 import { INVENTARIO_EXCEL_LATEST, INVENTARIO_EXCEL_TREND } from "./inventario_history.js";
-import { fetchInventario, saveInventarioRegistro } from "./inventario_sheets.js";
+import { fetchInventario, saveInventarioRegistro, updateInventarioRecord } from "./inventario_sheets.js";
 import { upsertConfig, fetchConfig, parseProdCat, parseBreakeven } from "./config_sheets.js";
 import { USERS, today } from "./constants.js";
 
@@ -23,11 +23,15 @@ function saveExtraProds(sede,prods) { try { const all=JSON.parse(localStorage.ge
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function fdate(d) {
   if (!d) return "—";
-  return new Date(d+"T12:00:00").toLocaleDateString("es-CL",{day:"2-digit",month:"short"});
+  const dt = new Date(d+"T12:00:00");
+  if (isNaN(dt.getTime())) return d;
+  return dt.toLocaleDateString("es-CL",{day:"2-digit",month:"short"});
 }
 function daysAgo(d) {
   if (!d) return null;
-  return Math.floor((new Date()-new Date(d+"T12:00:00"))/86400000);
+  const dt = new Date(d+"T12:00:00");
+  if (isNaN(dt.getTime())) return null;
+  return Math.floor((new Date()-dt)/86400000);
 }
 
 function buildLatestMap(liveRecords) {
@@ -636,19 +640,6 @@ function FormRegistro({ sede, latestMap, trendMap, user, conn, onSaved, isPrevie
   return (
     <div style={{ fontFamily:"'Consolas','Courier New',monospace" }}>
       <div style={{ display:"flex",gap:10,marginBottom:18,alignItems:"flex-end",flexWrap:"wrap" }}>
-        <div>
-          <label style={FL}>Tipo de registro</label>
-          <div style={{ display:"flex",gap:6 }}>
-            {[["stock","Stock Actual"],["reposicion","Reposición"]].map(([v,l])=>(
-              <button key={v} onClick={()=>setTipo(v)} style={{
-                padding:"7px 14px",fontSize:11,fontWeight:500,cursor:"pointer",borderRadius:7,
-                border:tipo===v?"none":"1px solid #e5e5e5",
-                background:tipo===v?"#1a1a1a":"#fff",color:tipo===v?"#fff":"#737373",
-                fontFamily:"'Sora',sans-serif"
-              }}>{l}</button>
-            ))}
-          </div>
-        </div>
         <div style={{ width:150 }}>
           <label style={FL}>Fecha</label>
           <input type="date" value={fecha} onChange={e=>setFecha(e.target.value)} style={I}/>
@@ -828,14 +819,64 @@ function InventarioCM({ user, records, onSaved, conn, breakevenMap={} }) {
       </div>
       <div style={{ flex:1,overflowY:"auto",overflowX:"auto",padding:"20px 24px" }}>
         {tab==="registrar"&&<FormRegistro sede={sede} latestMap={latestMap} trendMap={trendMap} user={user} conn={conn} onSaved={onSaved} breakevenMap={breakevenMap}/>}
-        {tab==="historial"&&<HistorialSede sede={sede} records={records} latestMap={latestMap}/>}
+        {tab==="historial"&&<HistorialSede sede={sede} records={records} latestMap={latestMap} onRecordUpdate={r=>{ const upd=records.map(x=>x.id===r.id?r:x); onSaved(upd); setCached(upd); }}/>}
       </div>
     </div>
   );
 }
 
 // ── Historial ─────────────────────────────────────────────────────────────────
-function HistorialSede({ sede, records, latestMap }) {
+function HistorialRow({ r, sede, day, i, onUpdate }) {
+  const [editing, setEditing] = useState(false);
+  const [editFecha, setEditFecha] = useState(r.fecha);
+  const [editCant, setEditCant] = useState(String(r.cantidad ?? ""));
+  const [saving, setSaving] = useState(false);
+  const min = getMinStock(sede, r.proveedor, r.producto);
+  const level = min !== null ? getLevel(r.cantidad, min) : "nd";
+  const cs = CELL_STYLE[level];
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const updated = { ...r, fecha: editFecha, cantidad: parseFloat(editCant) };
+      await updateInventarioRecord(updated);
+      onUpdate(updated);
+      setEditing(false);
+    } catch(e) { console.error(e); }
+    finally { setSaving(false); }
+  };
+
+  return (
+    <div style={{ display:"flex",alignItems:"center",gap:10,padding:"7px 14px",borderBottom:i<day.length-1?"1px solid #f5f5f5":"none" }}>
+      <div style={{ flex:1,fontSize:11,color:"#525252" }}>{r.producto}</div>
+      {editing ? (
+        <>
+          <input type="date" value={editFecha} onChange={e=>setEditFecha(e.target.value)}
+            style={{ ...I,width:130,fontSize:11,padding:"4px 6px" }}/>
+          <input type="number" min="0" step="0.5" value={editCant} onChange={e=>setEditCant(e.target.value)}
+            style={{ ...I,width:60,textAlign:"center",fontSize:11,padding:"4px 6px",fontFamily:"'JetBrains Mono',monospace" }}/>
+          <button onClick={handleSave} disabled={saving} style={{ ...BP,padding:"4px 8px",fontSize:10,opacity:saving?0.5:1 }}>
+            {saving?"…":"OK"}
+          </button>
+          <button onClick={()=>setEditing(false)} style={{ background:"none",border:"1px solid #e5e5e5",borderRadius:5,padding:"4px 7px",cursor:"pointer",color:"#a3a3a3",fontSize:10 }}>✕</button>
+        </>
+      ) : (
+        <>
+          <div style={{ fontSize:10,color:"#b3b3b3" }}>{r.proveedor}</div>
+          <div style={{ fontSize:12,fontWeight:cs.fontWeight,fontFamily:"'JetBrains Mono',monospace",color:r.tipo==="reposicion"?"#3b82f6":cs.color }}>
+            {r.tipo==="reposicion"?"+":""}{r.cantidad??"—"}
+          </div>
+          <button onClick={()=>{ setEditFecha(r.fecha); setEditCant(String(r.cantidad??"")); setEditing(true); }}
+            style={{ background:"none",border:"1px solid #e5e5e5",borderRadius:5,padding:"3px 7px",cursor:"pointer",color:"#a3a3a3",fontSize:9 }}>
+            editar
+          </button>
+        </>
+      )}
+    </div>
+  );
+}
+
+function HistorialSede({ sede, records, latestMap, onRecordUpdate }) {
   const sedeR = records.filter(r=>r.sede===sede).sort((a,b)=>b.fecha.localeCompare(a.fecha));
   const fechas = [...new Set(sedeR.map(r=>r.fecha))].slice(0,15);
   if (!sedeR.length) return <div style={{ textAlign:"center",color:"#d4d4d4",fontSize:12,padding:40 }}>Sin registros aún</div>;
@@ -848,25 +889,14 @@ function HistorialSede({ sede, records, latestMap }) {
           <div key={fecha} style={{ marginBottom:16 }}>
             <div style={{ display:"flex",alignItems:"center",gap:8,marginBottom:6 }}>
               <div style={{ fontSize:12,fontWeight:600 }}>{fdate(fecha)}</div>
-              <div style={{ fontSize:10,color:"#a3a3a3" }}>{ago===0?"hoy":`hace ${ago}d`}</div>
+              {ago!=null&&<div style={{ fontSize:10,color:"#a3a3a3" }}>{ago===0?"hoy":`hace ${ago}d`}</div>}
               {day.some(r=>r.tipo==="stock")&&<span style={{ fontSize:9,background:"#f0fdf4",color:"#16a34a",border:"1px solid #bbf7d0",padding:"1px 7px",borderRadius:4,fontWeight:500 }}>Stock</span>}
-              {day.some(r=>r.tipo==="reposicion")&&<span style={{ fontSize:9,background:"#eff6ff",color:"#3b82f6",border:"1px solid #bfdbfe",padding:"1px 7px",borderRadius:4,fontWeight:500 }}>Reposición</span>}
             </div>
             <div style={{ background:"#fff",border:"1px solid #f0f0f0",borderRadius:8,overflow:"hidden" }}>
-              {day.map((r,i)=>{
-                const min=getMinStock(sede,r.proveedor,r.producto);
-                const level=min!==null?getLevel(r.cantidad,min):"nd";
-                const cs=CELL_STYLE[level];
-                return (
-                  <div key={i} style={{ display:"flex",alignItems:"center",gap:10,padding:"7px 14px",borderBottom:i<day.length-1?"1px solid #f5f5f5":"none" }}>
-                    <div style={{ flex:1,fontSize:11,color:"#525252" }}>{r.producto}</div>
-                    <div style={{ fontSize:10,color:"#b3b3b3" }}>{r.proveedor}</div>
-                    <div style={{ fontSize:12,fontWeight:cs.fontWeight,fontFamily:"'JetBrains Mono',monospace",color:r.tipo==="reposicion"?"#3b82f6":cs.color }}>
-                      {r.tipo==="reposicion"?"+":""}{r.cantidad??"—"}
-                    </div>
-                  </div>
-                );
-              })}
+              {day.map((r,i)=>(
+                <HistorialRow key={r.id||i} r={r} sede={sede} day={day} i={i}
+                  onUpdate={updated=>onRecordUpdate?.(updated)}/>
+              ))}
             </div>
           </div>
         );
@@ -882,6 +912,9 @@ function DirectorioCM({ conn, catOverrides, onCatOverride }) {
   const [syncing, setSyncing] = useState(null);
   const [editingProd, setEditingProd] = useState(null); // producto name being edited
   const [savingProd, setSavingProd] = useState(null);
+  const [showCreateProd, setShowCreateProd] = useState(false);
+  const [newGlobalProd, setNewGlobalProd] = useState({ producto:"", categoria:"Aseo", proveedor:"Aseo", min_stock:1 });
+  const [savingNew, setSavingNew] = useState(false);
 
   const allUsers = useMemo(() => {
     try { return JSON.parse(localStorage.getItem("cw_users_extra")||"[]"); } catch { return []; }
@@ -908,6 +941,22 @@ function DirectorioCM({ conn, catOverrides, onCatOverride }) {
     try { await onCatOverride(producto, newCat); }
     catch(e) { console.error(e); }
     finally { setSavingProd(null); setEditingProd(null); }
+  };
+
+  const handleCreateProd = async () => {
+    if (!newGlobalProd.producto.trim()) return;
+    setSavingNew(true);
+    try {
+      await upsertConfig("prod_global", newGlobalProd.producto.trim(), JSON.stringify({
+        categoria: newGlobalProd.categoria,
+        proveedor: newGlobalProd.proveedor || newGlobalProd.categoria,
+        min_stock: Number(newGlobalProd.min_stock) || 1,
+      }));
+      await onCatOverride(newGlobalProd.producto.trim(), newGlobalProd.categoria);
+      setNewGlobalProd({ producto:"", categoria:"Aseo", proveedor:"Aseo", min_stock:1 });
+      setShowCreateProd(false);
+    } catch(e) { console.error(e); }
+    finally { setSavingNew(false); }
   };
 
   // Build unique product list with current categories
@@ -945,7 +994,7 @@ function DirectorioCM({ conn, catOverrides, onCatOverride }) {
   },[allProducts, catOverrides]);
 
   return (
-    <div style={{ padding:"20px 24px" }}>
+    <div style={{ padding:"20px 24px", overflowY:"auto", flex:1 }}>
       {/* Sub-tabs */}
       <div style={{ display:"flex",gap:6,marginBottom:16,alignItems:"center" }}>
         {subBtn("comerciales","Comerciales")}
@@ -1039,6 +1088,43 @@ function DirectorioCM({ conn, catOverrides, onCatOverride }) {
               </div>
             );
           })}
+          {/* Create new product */}
+          <div style={{ marginTop:8 }}>
+            {!showCreateProd ? (
+              <button onClick={()=>setShowCreateProd(true)} style={{ fontSize:11,color:"#6366f1",background:"none",border:"1px dashed #c4b5fd",borderRadius:6,padding:"7px 14px",cursor:"pointer",fontFamily:"'Sora',sans-serif",display:"flex",alignItems:"center",gap:5 }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Crear nuevo insumo
+              </button>
+            ) : (
+              <div style={{ background:"#fafafa",border:"1px solid #e5e5e5",borderRadius:10,padding:"14px 16px" }}>
+                <div style={{ fontSize:10,fontWeight:700,color:"#b3b3b3",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:10 }}>Nuevo insumo</div>
+                <div style={{ display:"flex",gap:8,flexWrap:"wrap",alignItems:"flex-end" }}>
+                  <div style={{ flex:2,minWidth:160 }}>
+                    <label style={FL}>Nombre</label>
+                    <input value={newGlobalProd.producto} onChange={e=>setNewGlobalProd(p=>({...p,producto:e.target.value}))}
+                      placeholder="Ej: Alcohol Gel" style={{ ...I,fontSize:12 }}/>
+                  </div>
+                  <div style={{ flex:1,minWidth:110 }}>
+                    <label style={FL}>Categoría</label>
+                    <select value={newGlobalProd.categoria} onChange={e=>setNewGlobalProd(p=>({...p,categoria:e.target.value,proveedor:e.target.value}))}
+                      style={{ ...I,cursor:"pointer",fontSize:12 }}>
+                      {CAT_ORDER.map(c=><option key={c} value={c}>{c}</option>)}
+                    </select>
+                  </div>
+                  <div style={{ width:70 }}>
+                    <label style={FL}>Mín.</label>
+                    <input type="number" min="1" value={newGlobalProd.min_stock} onChange={e=>setNewGlobalProd(p=>({...p,min_stock:e.target.value}))}
+                      style={{ ...I,textAlign:"center",fontSize:12 }}/>
+                  </div>
+                  <button onClick={handleCreateProd} disabled={!newGlobalProd.producto.trim()||savingNew}
+                    style={{ ...BP,padding:"8px 14px",opacity:newGlobalProd.producto.trim()&&!savingNew?1:0.4,flexShrink:0 }}>
+                    {savingNew?"Guardando…":"Crear"}
+                  </button>
+                  <button onClick={()=>setShowCreateProd(false)} style={{ background:"none",border:"1px solid #e5e5e5",borderRadius:6,padding:"7px 9px",cursor:"pointer",color:"#a3a3a3",fontSize:11,flexShrink:0 }}>✕</button>
+                </div>
+              </div>
+            )}
+          </div>
         </>
       )}
     </div>
