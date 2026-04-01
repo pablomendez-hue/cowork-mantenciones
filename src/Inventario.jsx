@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { INVENTARIO_CATALOG, INVENTARIO_SEDES } from "./inventario_catalog.js";
 import { INVENTARIO_EXCEL_LATEST, INVENTARIO_EXCEL_TREND } from "./inventario_history.js";
 import { fetchInventario, saveInventarioRegistro } from "./inventario_sheets.js";
-import { upsertConfig } from "./config_sheets.js";
+import { upsertConfig, fetchConfig, parseProdCat, parseBreakeven } from "./config_sheets.js";
 import { USERS, today } from "./constants.js";
 
 // ── Shared styles ────────────────────────────────────────────────────────────
@@ -81,7 +81,7 @@ const CAT_FIX = {
   "Café Granulado":"Cafetería","Vinagre":"Cafetería",
   "Papel Higiénico":"Papelería","Papel Interfoliado":"Papelería","Toalla de Papel":"Papelería"
 };
-function finalCat(p){ return CAT_FIX[p.producto]||p.categoria; }
+function finalCat(p, catOverrides={}){ return catOverrides[p.producto] || CAT_FIX[p.producto] || p.categoria; }
 
 function getMinStock(sede,proveedor,producto) {
   const c=(INVENTARIO_CATALOG[sede]||[]).find(p=>p.proveedor===proveedor&&p.producto===producto);
@@ -115,12 +115,12 @@ function getTrendByProd(sede,producto,trendMap){
 }
 
 // ── All unique products grouped by categoria + subcategoria ───────────────────
-function getAllProductsGrouped() {
+function getAllProductsGrouped(catOverrides={}) {
   const seen = new Set();
   const groups = {};
   for (const prods of Object.values(INVENTARIO_CATALOG)) {
     for (const p of prods) {
-      const cat = finalCat(p);
+      const cat = finalCat(p, catOverrides);
       const key = `${cat}||${p.producto}`;
       if (seen.has(key)) continue;
       seen.add(key);
@@ -295,8 +295,8 @@ function SedePanel({ sede, latestMap, trendMap, onClose }) {
 const TH = { padding:"8px 8px",textAlign:"left",borderBottom:"1px solid #f0f0f0",fontSize:10,color:"#737373",fontWeight:600,whiteSpace:"nowrap" };
 const TD = { padding:"6px 8px",textAlign:"center",fontSize:11,fontFamily:"'JetBrains Mono',monospace",borderBottom:"1px solid #f9f9f9" };
 
-function MatrixTable({ latestMap, filtCat, onSedeClick, activeSedeCol }) {
-  const groups = useMemo(()=>getAllProductsGrouped(),[]);
+function MatrixTable({ latestMap, filtCat, onSedeClick, activeSedeCol, catOverrides={} }) {
+  const groups = useMemo(()=>getAllProductsGrouped(catOverrides),[catOverrides]);
   const sedes = INVENTARIO_SEDES;
   const cats = filtCat ? [filtCat] : CAT_ORDER;
   const ref = useRef(null);
@@ -393,7 +393,7 @@ function MatrixTable({ latestMap, filtCat, onSedeClick, activeSedeCol }) {
 // ══════════════════════════════════════════════════════════════════════════════
 // ADMIN VIEW
 // ══════════════════════════════════════════════════════════════════════════════
-function InventarioAdmin({ records, user, conn, onSaved }) {
+function InventarioAdmin({ records, user, conn, onSaved, catOverrides={}, breakevenMap={}, onCatOverride, onBreakevenChange }) {
   const [tab, setTab] = useState("resumen");
   const [filtCat, setFiltCat] = useState("");
   const [activeSedeCol, setActiveSedeCol] = useState(null);
@@ -437,7 +437,7 @@ function InventarioAdmin({ records, user, conn, onSaved }) {
             Salir del preview
           </button>
         </div>
-        <FormRegistro sede={previewSede} latestMap={latestMap} trendMap={trendMap} user={user} conn={conn} onSaved={onSaved} isPreview/>
+        <FormRegistro sede={previewSede} latestMap={latestMap} trendMap={trendMap} user={user} conn={conn} onSaved={onSaved} isPreview breakevenMap={breakevenMap} onBreakevenChange={onBreakevenChange}/>
       </div>
     );
   }
@@ -486,7 +486,7 @@ function InventarioAdmin({ records, user, conn, onSaved }) {
       <div style={{ flex:1,display:"flex",minHeight:0,overflow:"hidden" }}>
         {tab==="resumen"&&(
           <>
-            <MatrixTable latestMap={latestMap} filtCat={filtCat} onSedeClick={setActiveSedeCol} activeSedeCol={activeSedeCol}/>
+            <MatrixTable latestMap={latestMap} filtCat={filtCat} onSedeClick={setActiveSedeCol} activeSedeCol={activeSedeCol} catOverrides={catOverrides}/>
             {activeSedeCol&&(
               <SedePanel sede={activeSedeCol} latestMap={latestMap} trendMap={trendMap} onClose={()=>setActiveSedeCol(null)}/>
             )}
@@ -500,11 +500,60 @@ function InventarioAdmin({ records, user, conn, onSaved }) {
                 {INVENTARIO_SEDES.map(s=><option key={s} value={s}>{s}</option>)}
               </select>
             </div>
-            <FormRegistro sede={previewSede} latestMap={latestMap} trendMap={trendMap} user={user} conn={conn} onSaved={onSaved}/>
+            <FormRegistro sede={previewSede} latestMap={latestMap} trendMap={trendMap} user={user} conn={conn} onSaved={onSaved} breakevenMap={breakevenMap} onBreakevenChange={onBreakevenChange}/>
           </div>
         )}
-        {tab==="directorio"&&<DirectorioCM conn={conn}/>}
+        {tab==="directorio"&&<DirectorioCM conn={conn} catOverrides={catOverrides} onCatOverride={onCatOverride}/>}
       </div>
+    </div>
+  );
+}
+
+// ── Punto de equilibrio cell (editable for ops) ────────────────────────────
+function ColPE({ sede, producto, be, histSorted, hasHist, breakevenMap, onBreakevenChange, user }) {
+  const [editing, setEditing] = useState(false);
+  const [editVal, setEditVal] = useState("");
+  const beKey = `${sede}||${producto}`;
+  const manualBE = breakevenMap?.[beKey];
+  const displayBE = manualBE != null ? manualBE : (be > 0 ? Math.round(be) : null);
+  const isOps = user?.role === "ops" || user?.role === "admin";
+
+  const handleSave = async () => {
+    const v = parseFloat(editVal);
+    if (isNaN(v) || v < 0) return;
+    await onBreakevenChange?.(sede, producto, v);
+    setEditing(false);
+  };
+
+  return (
+    <div style={{ width:195,flexShrink:0,padding:"5px 10px",display:"flex",alignItems:"center",gap:8 }}>
+      {hasHist && <SparkCM data={histSorted} breakeven={displayBE || be} width={140} height={28}/>}
+      {!hasHist && <span style={{ fontSize:9,color:"#e0e0e0",fontStyle:"italic" }}>sin datos</span>}
+      {editing ? (
+        <div style={{ display:"flex",flexDirection:"column",gap:3,flexShrink:0 }}>
+          <input type="number" min="0" step="0.5" value={editVal}
+            onChange={e=>setEditVal(e.target.value)}
+            style={{ ...I,width:50,textAlign:"center",fontSize:11,padding:"3px 4px" }}
+            autoFocus
+            onKeyDown={e=>{ if(e.key==="Enter") handleSave(); if(e.key==="Escape") setEditing(false); }}/>
+          <button onClick={handleSave} style={{ ...BP,padding:"2px 6px",fontSize:9 }}>OK</button>
+        </div>
+      ) : (
+        <div
+          style={{ flexShrink:0,textAlign:"center",cursor:isOps?"pointer":"default" }}
+          onClick={()=>{ if(!isOps) return; setEditVal(String(displayBE??"")); setEditing(true); }}
+          title={isOps?"Clic para editar punto de equilibrio":undefined}
+        >
+          <div style={{ fontSize:8,color:"#a3a3a3",marginBottom:1 }}>
+            {manualBE!=null?"p.e.":"med."}
+            {isOps && <span style={{ marginLeft:3,color:"#c0c0ff" }}>✎</span>}
+          </div>
+          {displayBE!=null
+            ? <div style={{ fontSize:13,fontWeight:700,color:manualBE!=null?"#6366f1":"#94a3b8",fontFamily:"'Consolas','Courier New',monospace",lineHeight:1 }}>{Math.round(displayBE)}</div>
+            : <div style={{ fontSize:9,color:"#e0e0e0" }}>—</div>
+          }
+        </div>
+      )}
     </div>
   );
 }
@@ -512,7 +561,7 @@ function InventarioAdmin({ records, user, conn, onSaved }) {
 // ══════════════════════════════════════════════════════════════════════════════
 // FORMULARIO DE REGISTRO
 // ══════════════════════════════════════════════════════════════════════════════
-function FormRegistro({ sede, latestMap, trendMap, user, conn, onSaved, isPreview }) {
+function FormRegistro({ sede, latestMap, trendMap, user, conn, onSaved, isPreview, breakevenMap={}, onBreakevenChange }) {
   const [tipo, setTipo] = useState("stock");
   const [fecha, setFecha] = useState(today());
   const [cantidades, setCantidades] = useState({});
@@ -631,7 +680,7 @@ function FormRegistro({ sede, latestMap, trendMap, user, conn, onSaved, isPrevie
                       <div style={{ width:170,flexShrink:0,padding:"0 10px",fontSize:8,color:"#b3b3b3",textTransform:"uppercase",letterSpacing:"0.05em",display:"flex",alignItems:"center" }}>Insumo</div>
                       <div style={{ flex:1,minWidth:0,padding:"0 8px",fontSize:8,color:"#b3b3b3",textTransform:"uppercase",letterSpacing:"0.05em",display:"flex",alignItems:"center",borderLeft:"1px dashed #e0e0e0" }}>Últimos 12 registros</div>
                       <div style={{ width:90,flexShrink:0,padding:"0 8px",fontSize:8,color:"#b3b3b3",textTransform:"uppercase",letterSpacing:"0.05em",display:"flex",alignItems:"center",justifyContent:"center",borderLeft:"1px dashed #e0e0e0" }}>Ingresar</div>
-                      <div style={{ width:195,flexShrink:0,padding:"0 10px",fontSize:8,color:"#b3b3b3",textTransform:"uppercase",letterSpacing:"0.05em",display:"flex",alignItems:"center",borderLeft:"1px dashed #e0e0e0" }}>Gráfico · Mediana</div>
+                      <div style={{ width:195,flexShrink:0,padding:"0 10px",fontSize:8,color:"#b3b3b3",textTransform:"uppercase",letterSpacing:"0.05em",display:"flex",alignItems:"center",borderLeft:"1px dashed #e0e0e0" }}>Gráfico · P. Equilibrio</div>
                     </div>
                     {subProds.map((p,idx)=>{
                       const fkey=`${p.proveedor}|||${p.producto}`;
@@ -683,15 +732,8 @@ function FormRegistro({ sede, latestMap, trendMap, user, conn, onSaved, isPrevie
                               onChange={e=>setCantidades(prev=>({...prev,[fkey]:e.target.value===""?"":parseFloat(e.target.value)}))}
                               placeholder="—" style={{ ...I,width:"100%",textAlign:"center",padding:"5px 4px",fontSize:13,fontFamily:"'Consolas','Courier New',monospace" }}/>
                           </div>
-                          {/* Col 4: sparkline + median */}
-                          <div style={{ width:195,flexShrink:0,padding:"5px 10px",display:"flex",alignItems:"center",gap:8 }}>
-                            {hasHist&&<SparkCM data={histSorted} breakeven={be} width={140} height={28}/>}
-                            {!hasHist&&<span style={{ fontSize:9,color:"#e0e0e0",fontStyle:"italic" }}>sin datos</span>}
-                            {be>0&&<div style={{ flexShrink:0,textAlign:"center" }}>
-                              <div style={{ fontSize:8,color:"#a3a3a3",marginBottom:1 }}>med.</div>
-                              <div style={{ fontSize:13,fontWeight:700,color:"#6366f1",fontFamily:"'Consolas','Courier New',monospace",lineHeight:1 }}>{Math.round(be)}</div>
-                            </div>}
-                          </div>
+                          {/* Col 4: sparkline + punto de equilibrio */}
+                          <ColPE sede={sede} producto={p.producto} be={be} histSorted={histSorted} hasHist={hasHist} breakevenMap={breakevenMap} onBreakevenChange={onBreakevenChange} user={user}/>
                         </div>
                       );
                     })}
@@ -750,7 +792,7 @@ function FormRegistro({ sede, latestMap, trendMap, user, conn, onSaved, isPrevie
 // ══════════════════════════════════════════════════════════════════════════════
 // CM VIEW
 // ══════════════════════════════════════════════════════════════════════════════
-function InventarioCM({ user, records, onSaved, conn }) {
+function InventarioCM({ user, records, onSaved, conn, breakevenMap={} }) {
   const sede = getCMSede(user.email);
   const [tab, setTab] = useState("registrar");
   const latestMap = useMemo(()=>buildLatestMap(records),[records]);
@@ -785,7 +827,7 @@ function InventarioCM({ user, records, onSaved, conn }) {
         </div>
       </div>
       <div style={{ flex:1,overflowY:"auto",overflowX:"auto",padding:"20px 24px" }}>
-        {tab==="registrar"&&<FormRegistro sede={sede} latestMap={latestMap} trendMap={trendMap} user={user} conn={conn} onSaved={onSaved}/>}
+        {tab==="registrar"&&<FormRegistro sede={sede} latestMap={latestMap} trendMap={trendMap} user={user} conn={conn} onSaved={onSaved} breakevenMap={breakevenMap}/>}
         {tab==="historial"&&<HistorialSede sede={sede} records={records} latestMap={latestMap}/>}
       </div>
     </div>
@@ -834,10 +876,13 @@ function HistorialSede({ sede, records, latestMap }) {
 }
 
 // ── Directorio ─────────────────────────────────────────────────────────────────
-function DirectorioCM({ conn }) {
+function DirectorioCM({ conn, catOverrides, onCatOverride }) {
+  const [subTab, setSubTab] = useState("comerciales");
   const [map, setMap] = useState(getSedeCMMap());
-  const [syncing, setSyncing] = useState(null); // email being synced
-  // Show all users (including those with role overrides applied at app load)
+  const [syncing, setSyncing] = useState(null);
+  const [editingProd, setEditingProd] = useState(null); // producto name being edited
+  const [savingProd, setSavingProd] = useState(null);
+
   const allUsers = useMemo(() => {
     try { return JSON.parse(localStorage.getItem("cw_users_extra")||"[]"); } catch { return []; }
   }, []);
@@ -858,35 +903,144 @@ function DirectorioCM({ conn }) {
     }
   };
 
+  const handleCatChange = async (producto, newCat) => {
+    setSavingProd(producto);
+    try { await onCatOverride(producto, newCat); }
+    catch(e) { console.error(e); }
+    finally { setSavingProd(null); setEditingProd(null); }
+  };
+
+  // Build unique product list with current categories
+  const allProducts = useMemo(()=>{
+    const seen = new Set();
+    const out = [];
+    for (const prods of Object.values(INVENTARIO_CATALOG)) {
+      for (const p of prods) {
+        if (!seen.has(p.producto)) {
+          seen.add(p.producto);
+          out.push({ producto: p.producto, categoriaBase: p.categoria, subcategoria: p.subcategoria||null });
+        }
+      }
+    }
+    return out.sort((a,b)=>a.producto.localeCompare(b.producto));
+  },[]);
+
+  const subBtn = (id, label) => (
+    <button onClick={()=>setSubTab(id)} style={{
+      padding:"5px 12px",fontSize:10,fontWeight:500,cursor:"pointer",borderRadius:5,
+      border:subTab===id?"none":"1px solid #e5e5e5",
+      background:subTab===id?"#1a1a1a":"#fff",color:subTab===id?"#fff":"#737373",
+      fontFamily:"'Sora',sans-serif"
+    }}>{label}</button>
+  );
+
+  const prodsByCategory = useMemo(()=>{
+    const g = {};
+    for (const p of allProducts) {
+      const cat = catOverrides[p.producto] || CAT_FIX[p.producto] || p.categoriaBase;
+      if (!g[cat]) g[cat] = [];
+      g[cat].push({...p, categoriaActual: cat});
+    }
+    return g;
+  },[allProducts, catOverrides]);
+
   return (
     <div style={{ padding:"20px 24px" }}>
-      <div style={{ display:"flex",alignItems:"center",gap:8,marginBottom:12 }}>
-        <div style={{ fontSize:9,fontWeight:700,color:"#b3b3b3",textTransform:"uppercase",letterSpacing:"0.06em" }}>Asignación de sedes ({cmUsers.length} comerciales)</div>
+      {/* Sub-tabs */}
+      <div style={{ display:"flex",gap:6,marginBottom:16,alignItems:"center" }}>
+        {subBtn("comerciales","Comerciales")}
+        {subBtn("insumos","Insumos")}
         {conn
-          ? <span style={{ fontSize:10,color:"#16a34a",display:"flex",alignItems:"center",gap:3 }}><span style={{ width:5,height:5,borderRadius:99,background:"#22c55e",display:"inline-block" }}/>Sincronizado con Sheets</span>
-          : <span style={{ fontSize:10,color:"#f59e0b" }}>Solo local (sin conexión a Sheets)</span>
+          ? <span style={{ fontSize:10,color:"#16a34a",display:"flex",alignItems:"center",gap:3,marginLeft:8 }}><span style={{ width:5,height:5,borderRadius:99,background:"#22c55e",display:"inline-block" }}/>Sincronizado</span>
+          : <span style={{ fontSize:10,color:"#f59e0b",marginLeft:8 }}>Solo local</span>
         }
       </div>
-      <div style={{ background:"#fff",border:"1px solid #f0f0f0",borderRadius:10,overflow:"hidden" }}>
-        {cmUsers.map((u,i)=>{
-          const asignada=map[u.email.toLowerCase()]||"";
-          const isSyncing=syncing===u.email;
-          return (
-            <div key={u.email} style={{ display:"flex",alignItems:"center",gap:12,padding:"10px 16px",borderBottom:i<cmUsers.length-1?"1px solid #f5f5f5":"none" }}>
-              <div style={{ width:30,height:30,borderRadius:99,background:"#eff6ff",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:600,color:"#3b82f6",flexShrink:0 }}>{u.name.charAt(0)}</div>
-              <div style={{ flex:1 }}>
-                <div style={{ fontSize:12,fontWeight:500 }}>{u.name}</div>
-                <div style={{ fontSize:10,color:"#a3a3a3" }}>{u.email}</div>
+
+      {subTab==="comerciales"&&(
+        <>
+          <div style={{ fontSize:9,fontWeight:700,color:"#b3b3b3",textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:10 }}>Asignación de sedes ({cmUsers.length} comerciales)</div>
+          <div style={{ background:"#fff",border:"1px solid #f0f0f0",borderRadius:10,overflow:"hidden" }}>
+            {cmUsers.map((u,i)=>{
+              const asignada=map[u.email.toLowerCase()]||"";
+              const isSyncing=syncing===u.email;
+              return (
+                <div key={u.email} style={{ display:"flex",alignItems:"center",gap:12,padding:"10px 16px",borderBottom:i<cmUsers.length-1?"1px solid #f5f5f5":"none" }}>
+                  <div style={{ width:30,height:30,borderRadius:99,background:"#eff6ff",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:600,color:"#3b82f6",flexShrink:0 }}>{u.name.charAt(0)}</div>
+                  <div style={{ flex:1 }}>
+                    <div style={{ fontSize:12,fontWeight:500 }}>{u.name}</div>
+                    <div style={{ fontSize:10,color:"#a3a3a3" }}>{u.email}</div>
+                  </div>
+                  {isSyncing && <span style={{ fontSize:10,color:"#a3a3a3" }}>Guardando…</span>}
+                  <select value={asignada} onChange={e=>handleChange(u.email, e.target.value)} style={{ ...I,width:200,cursor:"pointer",opacity:isSyncing?0.5:1 }} disabled={isSyncing}>
+                    <option value="">Sin sede</option>
+                    {INVENTARIO_SEDES.map(s=><option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
+
+      {subTab==="insumos"&&(
+        <>
+          <div style={{ fontSize:9,fontWeight:700,color:"#b3b3b3",textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:10 }}>
+            Categorías de insumos ({allProducts.length} productos)
+          </div>
+          {CAT_ORDER.map(cat=>{
+            const prods = prodsByCategory[cat]||[];
+            if (!prods.length) return null;
+            return (
+              <div key={cat} style={{ marginBottom:20 }}>
+                <div style={{ display:"flex",alignItems:"center",gap:6,marginBottom:8 }}>
+                  <span style={{ width:7,height:7,borderRadius:99,background:CAT_COLORS[cat],display:"inline-block" }}/>
+                  <span style={{ fontSize:9,fontWeight:700,color:CAT_COLORS[cat],textTransform:"uppercase",letterSpacing:"0.06em" }}>{cat}</span>
+                  <span style={{ fontSize:9,color:"#b3b3b3" }}>({prods.length})</span>
+                </div>
+                <div style={{ background:"#fff",border:"1px solid #f0f0f0",borderRadius:10,overflow:"hidden" }}>
+                  {prods.map((p,i)=>{
+                    const isEditing = editingProd===p.producto;
+                    const isSaving = savingProd===p.producto;
+                    const hasOverride = !!catOverrides[p.producto] || !!CAT_FIX[p.producto];
+                    return (
+                      <div key={p.producto} style={{ display:"flex",alignItems:"center",gap:12,padding:"9px 16px",borderBottom:i<prods.length-1?"1px solid #f5f5f5":"none" }}>
+                        <div style={{ flex:1 }}>
+                          <span style={{ fontSize:12,fontWeight:500 }}>{p.producto}</span>
+                          {hasOverride&&!isEditing&&<span style={{ fontSize:9,color:"#6366f1",marginLeft:6,background:"#f0f0ff",padding:"1px 5px",borderRadius:3 }}>editado</span>}
+                        </div>
+                        {isEditing?(
+                          <div style={{ display:"flex",gap:6,alignItems:"center" }}>
+                            <select defaultValue={p.categoriaActual}
+                              id={`cat-sel-${p.producto}`}
+                              style={{ ...I,width:130,fontSize:11,cursor:"pointer" }}>
+                              {CAT_ORDER.map(c=><option key={c} value={c}>{c}</option>)}
+                            </select>
+                            <button
+                              onClick={()=>{
+                                const sel=document.getElementById(`cat-sel-${p.producto}`);
+                                if(sel) handleCatChange(p.producto, sel.value);
+                              }}
+                              disabled={isSaving}
+                              style={{ ...BP,padding:"5px 10px",fontSize:10,opacity:isSaving?0.5:1 }}>
+                              {isSaving?"…":"OK"}
+                            </button>
+                            <button onClick={()=>setEditingProd(null)} style={{ background:"none",border:"1px solid #e5e5e5",borderRadius:6,padding:"5px 8px",cursor:"pointer",color:"#a3a3a3",fontSize:10 }}>✕</button>
+                          </div>
+                        ):(
+                          <button onClick={()=>setEditingProd(p.producto)}
+                            style={{ fontSize:10,color:"#6366f1",background:"none",border:"1px solid #e0e0ff",borderRadius:5,padding:"3px 9px",cursor:"pointer",fontFamily:"'Sora',sans-serif" }}>
+                            Cambiar cat.
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-              {isSyncing && <span style={{ fontSize:10,color:"#a3a3a3" }}>Guardando…</span>}
-              <select value={asignada} onChange={e=>handleChange(u.email, e.target.value)} style={{ ...I,width:200,cursor:"pointer",opacity:isSyncing?0.5:1 }} disabled={isSyncing}>
-                <option value="">Sin sede</option>
-                {INVENTARIO_SEDES.map(s=><option key={s} value={s}>{s}</option>)}
-              </select>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </>
+      )}
     </div>
   );
 }
@@ -897,15 +1051,40 @@ function DirectorioCM({ conn }) {
 export default function Inventario({ user, conn }) {
   const [records, setRecords] = useState(getCached());
   const [loading, setLoading] = useState(false);
+  const [catOverrides, setCatOverrides] = useState({});
+  const [breakevenMap, setBreakevenMap] = useState({});
 
   useEffect(()=>{
     if (!conn) return;
     setLoading(true);
-    fetchInventario()
-      .then(data=>{ setRecords(data); setCached(data); })
+    Promise.all([fetchInventario(), fetchConfig()])
+      .then(([data, configRows])=>{
+        setRecords(data); setCached(data);
+        setCatOverrides(parseProdCat(configRows));
+        setBreakevenMap(parseBreakeven(configRows));
+      })
       .catch(e=>console.error(e))
       .finally(()=>setLoading(false));
   },[conn]);
+
+  const onCatOverride = async (producto, categoria) => {
+    const next = { ...catOverrides, [producto]: categoria };
+    setCatOverrides(next);
+    if (conn) {
+      try { await upsertConfig("prod_cat", producto, categoria); }
+      catch(e) { console.error(e); }
+    }
+  };
+
+  const onBreakevenChange = async (sede, producto, value) => {
+    const key = `${sede}||${producto}`;
+    const next = { ...breakevenMap, [key]: value };
+    setBreakevenMap(next);
+    if (conn) {
+      try { await upsertConfig("breakeven", key, String(value)); }
+      catch(e) { console.error(e); }
+    }
+  };
 
   const isAdmin = user.role==="admin"||user.role==="ops";
 
@@ -916,6 +1095,6 @@ export default function Inventario({ user, conn }) {
   );
 
   return isAdmin
-    ? <InventarioAdmin records={records} user={user} conn={conn} onSaved={setRecords}/>
-    : <InventarioCM user={user} records={records} onSaved={setRecords} conn={conn}/>;
+    ? <InventarioAdmin records={records} user={user} conn={conn} onSaved={setRecords} catOverrides={catOverrides} breakevenMap={breakevenMap} onCatOverride={onCatOverride} onBreakevenChange={onBreakevenChange}/>
+    : <InventarioCM user={user} records={records} onSaved={setRecords} conn={conn} breakevenMap={breakevenMap}/>;
 }

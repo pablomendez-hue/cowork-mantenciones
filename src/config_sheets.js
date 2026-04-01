@@ -66,3 +66,24 @@ export function parseRoleOverrides(configRows) {
   }
   return map;
 }
+
+// Returns { [producto]: categoria }
+export function parseProdCat(configRows) {
+  const map = {};
+  for (const r of configRows) {
+    if (r.tipo === "prod_cat" && r.clave && r.valor) map[r.clave] = r.valor;
+  }
+  return map;
+}
+
+// Returns { ["sede||producto"]: number }
+export function parseBreakeven(configRows) {
+  const map = {};
+  for (const r of configRows) {
+    if (r.tipo === "breakeven" && r.clave && r.valor) {
+      const val = parseFloat(r.valor);
+      if (!isNaN(val)) map[r.clave] = val;
+    }
+  }
+  return map;
+}
