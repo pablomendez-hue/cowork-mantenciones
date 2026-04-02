@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { INVENTARIO_CATALOG, INVENTARIO_SEDES } from "./inventario_catalog.js";
 import { INVENTARIO_EXCEL_LATEST, INVENTARIO_EXCEL_TREND } from "./inventario_history.js";
-import { fetchInventario, saveInventarioRegistro, updateInventarioRecord } from "./inventario_sheets.js";
+import { fetchInventario, saveInventarioRegistro, updateInventarioRecord, deleteInventarioRecord } from "./inventario_sheets.js";
 import { upsertConfig, fetchConfig, parseProdCat, parseBreakeven } from "./config_sheets.js";
 import { USERS, today } from "./constants.js";
 
@@ -517,7 +517,9 @@ function InventarioAdmin({ records, user, conn, onSaved, catOverrides={}, breake
               </select>
             </div>
             <HistorialSede sede={previewSede} records={records} latestMap={latestMap}
-              onRecordUpdate={r=>{ const upd=records.map(x=>x.id===r.id?r:x); onSaved(upd); setCached(upd); }}/>
+              onRecordUpdate={r=>{ const upd=records.map(x=>x.id===r.id?r:x); onSaved(upd); setCached(upd); }}
+              canDelete={true}
+              onRecordDelete={id=>{ const upd=records.filter(x=>x.id!==id); onSaved(upd); setCached(upd); }}/>
           </div>
         )}
         {tab==="directorio"&&<DirectorioCM conn={conn} catOverrides={catOverrides} onCatOverride={onCatOverride}/>}
@@ -867,11 +869,12 @@ function InventarioCM({ user, records, onSaved, conn, breakevenMap={} }) {
 }
 
 // ── Historial ─────────────────────────────────────────────────────────────────
-function HistorialRow({ r, sede, day, i, onUpdate }) {
+function HistorialRow({ r, sede, day, i, onUpdate, canDelete, onDelete }) {
   const [editing, setEditing] = useState(false);
   const [editFecha, setEditFecha] = useState(r.fecha);
   const [editCant, setEditCant] = useState(String(r.cantidad ?? ""));
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const min = getMinStock(sede, r.proveedor, r.producto);
   const level = min !== null ? getLevel(r.cantidad, min) : "nd";
   const cs = CELL_STYLE[level];
@@ -885,6 +888,15 @@ function HistorialRow({ r, sede, day, i, onUpdate }) {
       setEditing(false);
     } catch(e) { console.error(e); }
     finally { setSaving(false); }
+  };
+
+  const handleDelete = async () => {
+    if (!window.confirm(`¿Eliminar registro de "${r.producto}" (${r.cantidad ?? "—"} — ${fdate(r.fecha)})?`)) return;
+    setDeleting(true);
+    try {
+      await deleteInventarioRecord(r.id);
+      onDelete(r.id);
+    } catch(e) { console.error(e); setDeleting(false); }
   };
 
   return (
@@ -911,13 +923,19 @@ function HistorialRow({ r, sede, day, i, onUpdate }) {
             style={{ background:"none",border:"1px solid #e5e5e5",borderRadius:5,padding:"3px 7px",cursor:"pointer",color:"#a3a3a3",fontSize:9 }}>
             editar
           </button>
+          {canDelete&&(
+            <button onClick={handleDelete} disabled={deleting}
+              style={{ background:"none",border:"1px solid #fecaca",borderRadius:5,padding:"3px 7px",cursor:"pointer",color:"#ef4444",fontSize:9,opacity:deleting?0.5:1 }}>
+              {deleting?"…":"borrar"}
+            </button>
+          )}
         </>
       )}
     </div>
   );
 }
 
-function HistorialSede({ sede, records, latestMap, onRecordUpdate }) {
+function HistorialSede({ sede, records, latestMap, onRecordUpdate, canDelete, onRecordDelete }) {
   const sedeR = records.filter(r=>r.sede===sede).sort((a,b)=>b.fecha.localeCompare(a.fecha));
   const fechas = [...new Set(sedeR.map(r=>r.fecha))].slice(0,15);
   if (!sedeR.length) return <div style={{ textAlign:"center",color:"#d4d4d4",fontSize:12,padding:40 }}>Sin registros aún</div>;
@@ -936,7 +954,8 @@ function HistorialSede({ sede, records, latestMap, onRecordUpdate }) {
             <div style={{ background:"#fff",border:"1px solid #f0f0f0",borderRadius:8,overflow:"hidden" }}>
               {day.map((r,i)=>(
                 <HistorialRow key={r.id||i} r={r} sede={sede} day={day} i={i}
-                  onUpdate={updated=>onRecordUpdate?.(updated)}/>
+                  onUpdate={updated=>onRecordUpdate?.(updated)}
+                  canDelete={canDelete} onDelete={id=>onRecordDelete?.(id)}/>
               ))}
             </div>
           </div>
