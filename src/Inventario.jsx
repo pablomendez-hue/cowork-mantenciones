@@ -453,6 +453,7 @@ function InventarioAdmin({ records, user, conn, onSaved, catOverrides={}, breake
         <div style={{ display:"flex",gap:4 }}>
           {navBtn("resumen","Resumen")}
           {navBtn("registrar","Registrar")}
+          {navBtn("historial","Historial")}
           {navBtn("directorio","Directorio")}
         </div>
         {tab==="resumen"&&(
@@ -505,6 +506,18 @@ function InventarioAdmin({ records, user, conn, onSaved, catOverrides={}, breake
               </select>
             </div>
             <FormRegistro sede={previewSede} latestMap={latestMap} trendMap={trendMap} user={user} conn={conn} onSaved={onSaved} breakevenMap={breakevenMap} onBreakevenChange={onBreakevenChange}/>
+          </div>
+        )}
+        {tab==="historial"&&(
+          <div style={{ flex:1,overflowY:"auto",padding:"20px 24px" }}>
+            <div style={{ marginBottom:16 }}>
+              <label style={FL}>Sede</label>
+              <select value={previewSede} onChange={e=>setPreviewSede(e.target.value)} style={{ ...I,width:220,cursor:"pointer" }}>
+                {INVENTARIO_SEDES.map(s=><option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+            <HistorialSede sede={previewSede} records={records} latestMap={latestMap}
+              onRecordUpdate={r=>{ const upd=records.map(x=>x.id===r.id?r:x); onSaved(upd); setCached(upd); }}/>
           </div>
         )}
         {tab==="directorio"&&<DirectorioCM conn={conn} catOverrides={catOverrides} onCatOverride={onCatOverride}/>}
