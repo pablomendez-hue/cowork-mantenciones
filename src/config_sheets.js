@@ -92,7 +92,7 @@ export function parseBreakeven(configRows) {
 export function parseProdGlobal(configRows) {
   const out = [];
   for (const r of configRows) {
-    if (r.tipo === "prod_global" && r.clave && r.valor) {
+    if (r.tipo === "prod_global" && r.clave && r.valor && r.valor !== "deleted") {
       try {
         const d = JSON.parse(r.valor);
         out.push({ producto: r.clave, categoria: d.categoria||"Aseo", proveedor: d.proveedor||"Aseo", min_stock: d.min_stock||1 });

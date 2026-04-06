@@ -397,7 +397,7 @@ function MatrixTable({ latestMap, filtCat, onSedeClick, activeSedeCol, catOverri
 // ══════════════════════════════════════════════════════════════════════════════
 // ADMIN VIEW
 // ══════════════════════════════════════════════════════════════════════════════
-function InventarioAdmin({ records, user, conn, onSaved, catOverrides={}, breakevenMap={}, onCatOverride, onBreakevenChange, extraProds=[], onAddProd }) {
+function InventarioAdmin({ records, user, conn, onSaved, catOverrides={}, breakevenMap={}, onCatOverride, onBreakevenChange, extraProds=[], onAddProd, onRemoveProd }) {
   const [tab, setTab] = useState("resumen");
   const [filtCat, setFiltCat] = useState("");
   const [activeSedeCol, setActiveSedeCol] = useState(null);
@@ -522,7 +522,7 @@ function InventarioAdmin({ records, user, conn, onSaved, catOverrides={}, breake
               onRecordDelete={id=>{ const upd=records.filter(x=>x.id!==id); onSaved(upd); setCached(upd); }}/>
           </div>
         )}
-        {tab==="directorio"&&<DirectorioCM conn={conn} catOverrides={catOverrides} onCatOverride={onCatOverride} extraProds={extraProds} onAddProd={onAddProd}/>}
+        {tab==="directorio"&&<DirectorioCM conn={conn} catOverrides={catOverrides} onCatOverride={onCatOverride} extraProds={extraProds} onAddProd={onAddProd} onRemoveProd={onRemoveProd}/>}
       </div>
     </div>
   );
@@ -966,7 +966,7 @@ function HistorialSede({ sede, records, latestMap, onRecordUpdate, canDelete, on
 }
 
 // ── Directorio ─────────────────────────────────────────────────────────────────
-function DirectorioCM({ conn, catOverrides, onCatOverride, extraProds=[], onAddProd }) {
+function DirectorioCM({ conn, catOverrides, onCatOverride, extraProds=[], onAddProd, onRemoveProd }) {
   const [subTab, setSubTab] = useState("comerciales");
   const [map, setMap] = useState(getSedeCMMap());
   const [syncing, setSyncing] = useState(null);
@@ -975,6 +975,18 @@ function DirectorioCM({ conn, catOverrides, onCatOverride, extraProds=[], onAddP
   const [showCreateProd, setShowCreateProd] = useState(false);
   const [newGlobalProd, setNewGlobalProd] = useState({ producto:"", categoria:"Aseo", proveedor:"Aseo", min_stock:1 });
   const [savingNew, setSavingNew] = useState(false);
+  const [deletingProd, setDeletingProd] = useState(null);
+
+  const extraProdNames = useMemo(()=>new Set(extraProds.map(p=>p.producto)),[extraProds]);
+
+  const handleDeleteProd = async (producto) => {
+    setDeletingProd(producto);
+    try {
+      if (conn) await upsertConfig("prod_global", producto, "deleted");
+      if (onRemoveProd) onRemoveProd(producto);
+    } catch(e) { console.error(e); }
+    finally { setDeletingProd(null); }
+  };
 
   const allUsers = useMemo(() => {
     try { return JSON.parse(localStorage.getItem("cw_users_extra")||"[]"); } catch { return []; }
@@ -1151,10 +1163,21 @@ function DirectorioCM({ conn, catOverrides, onCatOverride, extraProds=[], onAddP
                             <button onClick={()=>setEditingProd(null)} style={{ background:"none",border:"1px solid #e5e5e5",borderRadius:6,padding:"5px 8px",cursor:"pointer",color:"#a3a3a3",fontSize:10 }}>✕</button>
                           </div>
                         ):(
-                          <button onClick={()=>setEditingProd(p.producto)}
-                            style={{ fontSize:10,color:"#6366f1",background:"none",border:"1px solid #e0e0ff",borderRadius:5,padding:"3px 9px",cursor:"pointer",fontFamily:"'Sora',sans-serif" }}>
-                            Cambiar cat.
-                          </button>
+                          <div style={{ display:"flex",gap:6,alignItems:"center" }}>
+                            <button onClick={()=>setEditingProd(p.producto)}
+                              style={{ fontSize:10,color:"#6366f1",background:"none",border:"1px solid #e0e0ff",borderRadius:5,padding:"3px 9px",cursor:"pointer",fontFamily:"'Sora',sans-serif" }}>
+                              Cambiar cat.
+                            </button>
+                            {extraProdNames.has(p.producto)&&(
+                              <button
+                                onClick={()=>handleDeleteProd(p.producto)}
+                                disabled={deletingProd===p.producto}
+                                style={{ background:"none",border:"1px solid #fecaca",borderRadius:5,padding:"3px 7px",cursor:"pointer",color:deletingProd===p.producto?"#e0e0e0":"#ef4444",fontSize:10,display:"flex",alignItems:"center" }}
+                                title="Eliminar insumo">
+                                {deletingProd===p.producto?"…":<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>}
+                              </button>
+                            )}
+                          </div>
                         )}
                       </div>
                     );
@@ -1243,6 +1266,10 @@ export default function Inventario({ user, conn }) {
     setExtraProds(prev => [...prev.filter(p=>p.producto!==prod.producto), prod]);
   };
 
+  const onRemoveProd = (producto) => {
+    setExtraProds(prev => prev.filter(p=>p.producto!==producto));
+  };
+
   const onBreakevenChange = async (sede, producto, value) => {
     const key = `${sede}||${producto}`;
     const next = { ...breakevenMap, [key]: value };
@@ -1262,6 +1289,6 @@ export default function Inventario({ user, conn }) {
   );
 
   return isAdmin
-    ? <InventarioAdmin records={records} user={user} conn={conn} onSaved={setRecords} catOverrides={catOverrides} breakevenMap={breakevenMap} onCatOverride={onCatOverride} onBreakevenChange={onBreakevenChange} extraProds={extraProds} onAddProd={onAddProd}/>
+    ? <InventarioAdmin records={records} user={user} conn={conn} onSaved={setRecords} catOverrides={catOverrides} breakevenMap={breakevenMap} onCatOverride={onCatOverride} onBreakevenChange={onBreakevenChange} extraProds={extraProds} onAddProd={onAddProd} onRemoveProd={onRemoveProd}/>
     : <InventarioCM user={user} records={records} onSaved={setRecords} conn={conn} breakevenMap={breakevenMap}/>;
 }
