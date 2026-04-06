@@ -441,7 +441,7 @@ function InventarioAdmin({ records, user, conn, onSaved, catOverrides={}, breake
             Salir del preview
           </button>
         </div>
-        <FormRegistro sede={previewSede} latestMap={latestMap} trendMap={trendMap} user={user} conn={conn} onSaved={onSaved} isPreview breakevenMap={breakevenMap} onBreakevenChange={onBreakevenChange}/>
+        <FormRegistro sede={previewSede} latestMap={latestMap} trendMap={trendMap} user={user} conn={conn} onSaved={onSaved} isPreview breakevenMap={breakevenMap} onBreakevenChange={onBreakevenChange} globalExtraProds={extraProds}/>
       </div>
     );
   }
@@ -505,7 +505,7 @@ function InventarioAdmin({ records, user, conn, onSaved, catOverrides={}, breake
                 {INVENTARIO_SEDES.map(s=><option key={s} value={s}>{s}</option>)}
               </select>
             </div>
-            <FormRegistro sede={previewSede} latestMap={latestMap} trendMap={trendMap} user={user} conn={conn} onSaved={onSaved} breakevenMap={breakevenMap} onBreakevenChange={onBreakevenChange}/>
+            <FormRegistro sede={previewSede} latestMap={latestMap} trendMap={trendMap} user={user} conn={conn} onSaved={onSaved} breakevenMap={breakevenMap} onBreakevenChange={onBreakevenChange} globalExtraProds={extraProds}/>
           </div>
         )}
         {tab==="historial"&&(
@@ -580,7 +580,7 @@ function ColPE({ sede, producto, be, histSorted, hasHist, breakevenMap, onBreake
 // ══════════════════════════════════════════════════════════════════════════════
 // FORMULARIO DE REGISTRO
 // ══════════════════════════════════════════════════════════════════════════════
-function FormRegistro({ sede, latestMap, trendMap, user, conn, onSaved, isPreview, breakevenMap={}, onBreakevenChange }) {
+function FormRegistro({ sede, latestMap, trendMap, user, conn, onSaved, isPreview, breakevenMap={}, onBreakevenChange, globalExtraProds=[] }) {
   const [tipo, setTipo] = useState("stock");
   const [fecha, setFecha] = useState(today());
   const [cantidades, setCantidades] = useState({});
@@ -610,8 +610,14 @@ function FormRegistro({ sede, latestMap, trendMap, user, conn, onSaved, isPrevie
         }
       }
     }
+    for (const p of globalExtraProds) {
+      if (!existing.has(p.producto)&&!seen.has(p.producto)) {
+        seen.add(p.producto);
+        out.push({ proveedor:p.proveedor||p.categoria, producto:p.producto, min_stock:p.min_stock||1, categoria:p.categoria, subcategoria:null });
+      }
+    }
     return out.sort((a,b)=>a.producto.localeCompare(b.producto));
-  },[allSedeProds]);
+  },[allSedeProds, globalExtraProds]);
 
   const handleAddProd = (cat) => {
     if (!newProd.producto) return;
@@ -826,7 +832,7 @@ function FormRegistro({ sede, latestMap, trendMap, user, conn, onSaved, isPrevie
 // ══════════════════════════════════════════════════════════════════════════════
 // CM VIEW
 // ══════════════════════════════════════════════════════════════════════════════
-function InventarioCM({ user, records, onSaved, conn, breakevenMap={} }) {
+function InventarioCM({ user, records, onSaved, conn, breakevenMap={}, globalExtraProds=[] }) {
   const sede = getCMSede(user.email);
   const [tab, setTab] = useState("registrar");
   const latestMap = useMemo(()=>buildLatestMap(records),[records]);
@@ -861,7 +867,7 @@ function InventarioCM({ user, records, onSaved, conn, breakevenMap={} }) {
         </div>
       </div>
       <div style={{ flex:1,overflowY:"auto",overflowX:"auto",padding:"20px 24px" }}>
-        {tab==="registrar"&&<FormRegistro sede={sede} latestMap={latestMap} trendMap={trendMap} user={user} conn={conn} onSaved={onSaved} breakevenMap={breakevenMap}/>}
+        {tab==="registrar"&&<FormRegistro sede={sede} latestMap={latestMap} trendMap={trendMap} user={user} conn={conn} onSaved={onSaved} breakevenMap={breakevenMap} globalExtraProds={globalExtraProds}/>}
         {tab==="historial"&&<HistorialSede sede={sede} records={records} latestMap={latestMap} onRecordUpdate={r=>{ const upd=records.map(x=>x.id===r.id?r:x); onSaved(upd); setCached(upd); }}/>}
       </div>
     </div>
@@ -1290,5 +1296,5 @@ export default function Inventario({ user, conn }) {
 
   return isAdmin
     ? <InventarioAdmin records={records} user={user} conn={conn} onSaved={setRecords} catOverrides={catOverrides} breakevenMap={breakevenMap} onCatOverride={onCatOverride} onBreakevenChange={onBreakevenChange} extraProds={extraProds} onAddProd={onAddProd} onRemoveProd={onRemoveProd}/>
-    : <InventarioCM user={user} records={records} onSaved={setRecords} conn={conn} breakevenMap={breakevenMap}/>;
+    : <InventarioCM user={user} records={records} onSaved={setRecords} conn={conn} breakevenMap={breakevenMap} globalExtraProds={extraProds}/>;
 }
