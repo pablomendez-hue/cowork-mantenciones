@@ -143,7 +143,7 @@ function Detail({item,onClose,onUpdate,onDelete,saving,user}){
   const[editBy,setEditBy]=useState(item.by||"");const[editAmt,setEditAmt]=useState(item.amount||"");const[showEditAmt,setShowEditAmt]=useState(false);
   const[editProv,setEditProv]=useState(item.provider||"");const[showEditProv,setShowEditProv]=useState(false);
   const[assignee,setAssignee]=useState(item.assignee||"");const[saved,setSaved]=useState(false);
-  const isAdm=user.role==="admin";const canEdit=isAdm||user.role==="ops";const cPay=isAdm;const cFin=user.role==="ops"||isAdm;const cDel=isAdm;
+  const isAdm=user.role==="admin";const isEmilia=user.email.toLowerCase()==="emilia@co-work.cl";const canEdit=isAdm||user.role==="ops";const cPay=isAdm||isEmilia;const cFin=user.role==="ops"||isAdm||isEmilia;const cDel=isAdm;
   const canPri=isAdm;
   const opsUsers=getAllUsers().filter(u=>u.role==="ops");
 
@@ -240,7 +240,7 @@ export default function App(){
 
   const nextNum=()=>{const ns=items.map(i=>i.num||0);return ns.length?Math.max(...ns)+1:1};
 
-  const handleDrop=useCallback((id,ns)=>{let dropped=null;setItems(p=>p.map(t=>{if(t.id!==id)return t;const f=COL_IDS.indexOf(t.stage),to=COL_IDS.indexOf(ns);if(Math.abs(to-f)!==1||to<f)return t;if(ns==="pago"&&(!t.provider||!t.amount))return t;if(ns==="en_proceso"&&!t.payment)return t;if(ns==="en_proceso"&&user.role!=="admin")return t;if(ns==="finalizado"&&user.role!=="ops"&&user.role!=="admin")return t;const it={...t,stage:ns};if(ns==="finalizado")it.closedAt=today();dropped=it;return it}));if(dropped){persist(dropped);doNotify(dropped,"stage")}},[conn,user]);
+  const handleDrop=useCallback((id,ns)=>{const isEmiliaU=user.email.toLowerCase()==="emilia@co-work.cl";let dropped=null;setItems(p=>p.map(t=>{if(t.id!==id)return t;const f=COL_IDS.indexOf(t.stage),to=COL_IDS.indexOf(ns);if(Math.abs(to-f)!==1||to<f)return t;if(ns==="pago"&&(!t.provider||!t.amount))return t;if(ns==="en_proceso"&&!t.payment)return t;if(ns==="en_proceso"&&user.role!=="admin"&&!isEmiliaU)return t;if(ns==="finalizado"&&user.role!=="ops"&&user.role!=="admin"&&!isEmiliaU)return t;const it={...t,stage:ns};if(ns==="finalizado")it.closedAt=today();dropped=it;return it}));if(dropped){persist(dropped);doNotify(dropped,"stage")}},[conn,user]);
 
   const handleNew=async f=>{const it={id:Date.now(),num:nextNum(),...f,stage:"requerimiento",date:today(),provider:null,amount:null,payment:null,closedAt:null,execDate:null,comments:[],assignee:null};setItems(p=>[it,...p]);setShowNew(false);if(conn){savRef.current=true;setSaving(true);try{await createTicket(it)}catch(e){console.error(e)}finally{setSaving(false);savRef.current=false}}};
 
