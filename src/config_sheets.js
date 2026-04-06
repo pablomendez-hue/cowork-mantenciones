@@ -87,3 +87,17 @@ export function parseBreakeven(configRows) {
   }
   return map;
 }
+
+// Returns [{producto, categoria, proveedor, min_stock}] for products added via UI
+export function parseProdGlobal(configRows) {
+  const out = [];
+  for (const r of configRows) {
+    if (r.tipo === "prod_global" && r.clave && r.valor) {
+      try {
+        const d = JSON.parse(r.valor);
+        out.push({ producto: r.clave, categoria: d.categoria||"Aseo", proveedor: d.proveedor||"Aseo", min_stock: d.min_stock||1 });
+      } catch {}
+    }
+  }
+  return out;
+}

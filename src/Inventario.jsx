@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { INVENTARIO_CATALOG, INVENTARIO_SEDES } from "./inventario_catalog.js";
 import { INVENTARIO_EXCEL_LATEST, INVENTARIO_EXCEL_TREND } from "./inventario_history.js";
 import { fetchInventario, saveInventarioRegistro, updateInventarioRecord, deleteInventarioRecord } from "./inventario_sheets.js";
-import { upsertConfig, fetchConfig, parseProdCat, parseBreakeven } from "./config_sheets.js";
+import { upsertConfig, fetchConfig, parseProdCat, parseBreakeven, parseProdGlobal } from "./config_sheets.js";
 import { USERS, today } from "./constants.js";
 
 // ── Shared styles ────────────────────────────────────────────────────────────
@@ -397,7 +397,7 @@ function MatrixTable({ latestMap, filtCat, onSedeClick, activeSedeCol, catOverri
 // ══════════════════════════════════════════════════════════════════════════════
 // ADMIN VIEW
 // ══════════════════════════════════════════════════════════════════════════════
-function InventarioAdmin({ records, user, conn, onSaved, catOverrides={}, breakevenMap={}, onCatOverride, onBreakevenChange }) {
+function InventarioAdmin({ records, user, conn, onSaved, catOverrides={}, breakevenMap={}, onCatOverride, onBreakevenChange, extraProds=[], onAddProd }) {
   const [tab, setTab] = useState("resumen");
   const [filtCat, setFiltCat] = useState("");
   const [activeSedeCol, setActiveSedeCol] = useState(null);
@@ -522,7 +522,7 @@ function InventarioAdmin({ records, user, conn, onSaved, catOverrides={}, breake
               onRecordDelete={id=>{ const upd=records.filter(x=>x.id!==id); onSaved(upd); setCached(upd); }}/>
           </div>
         )}
-        {tab==="directorio"&&<DirectorioCM conn={conn} catOverrides={catOverrides} onCatOverride={onCatOverride}/>}
+        {tab==="directorio"&&<DirectorioCM conn={conn} catOverrides={catOverrides} onCatOverride={onCatOverride} extraProds={extraProds} onAddProd={onAddProd}/>}
       </div>
     </div>
   );
@@ -966,7 +966,7 @@ function HistorialSede({ sede, records, latestMap, onRecordUpdate, canDelete, on
 }
 
 // ── Directorio ─────────────────────────────────────────────────────────────────
-function DirectorioCM({ conn, catOverrides, onCatOverride }) {
+function DirectorioCM({ conn, catOverrides, onCatOverride, extraProds=[], onAddProd }) {
   const [subTab, setSubTab] = useState("comerciales");
   const [map, setMap] = useState(getSedeCMMap());
   const [syncing, setSyncing] = useState(null);
@@ -1006,13 +1006,22 @@ function DirectorioCM({ conn, catOverrides, onCatOverride }) {
   const handleCreateProd = async () => {
     if (!newGlobalProd.producto.trim()) return;
     setSavingNew(true);
+    const prod = {
+      producto: newGlobalProd.producto.trim(),
+      categoria: newGlobalProd.categoria,
+      proveedor: newGlobalProd.proveedor || newGlobalProd.categoria,
+      min_stock: Number(newGlobalProd.min_stock) || 1,
+    };
     try {
-      await upsertConfig("prod_global", newGlobalProd.producto.trim(), JSON.stringify({
-        categoria: newGlobalProd.categoria,
-        proveedor: newGlobalProd.proveedor || newGlobalProd.categoria,
-        min_stock: Number(newGlobalProd.min_stock) || 1,
-      }));
-      await onCatOverride(newGlobalProd.producto.trim(), newGlobalProd.categoria);
+      if (conn) {
+        await upsertConfig("prod_global", prod.producto, JSON.stringify({
+          categoria: prod.categoria,
+          proveedor: prod.proveedor,
+          min_stock: prod.min_stock,
+        }));
+      }
+      await onCatOverride(prod.producto, prod.categoria);
+      if (onAddProd) onAddProd(prod);
       setNewGlobalProd({ producto:"", categoria:"Aseo", proveedor:"Aseo", min_stock:1 });
       setShowCreateProd(false);
     } catch(e) { console.error(e); }
@@ -1031,8 +1040,14 @@ function DirectorioCM({ conn, catOverrides, onCatOverride }) {
         }
       }
     }
+    for (const p of extraProds) {
+      if (!seen.has(p.producto)) {
+        seen.add(p.producto);
+        out.push({ producto: p.producto, categoriaBase: p.categoria, subcategoria: null });
+      }
+    }
     return out.sort((a,b)=>a.producto.localeCompare(b.producto));
-  },[]);
+  },[extraProds]);
 
   const subBtn = (id, label) => (
     <button onClick={()=>setSubTab(id)} style={{
@@ -1199,6 +1214,7 @@ export default function Inventario({ user, conn }) {
   const [loading, setLoading] = useState(false);
   const [catOverrides, setCatOverrides] = useState({});
   const [breakevenMap, setBreakevenMap] = useState({});
+  const [extraProds, setExtraProds] = useState([]);
 
   useEffect(()=>{
     if (!conn) return;
@@ -1208,6 +1224,7 @@ export default function Inventario({ user, conn }) {
         setRecords(data); setCached(data);
         setCatOverrides(parseProdCat(configRows));
         setBreakevenMap(parseBreakeven(configRows));
+        setExtraProds(parseProdGlobal(configRows));
       })
       .catch(e=>console.error(e))
       .finally(()=>setLoading(false));
@@ -1220,6 +1237,10 @@ export default function Inventario({ user, conn }) {
       try { await upsertConfig("prod_cat", producto, categoria); }
       catch(e) { console.error(e); }
     }
+  };
+
+  const onAddProd = (prod) => {
+    setExtraProds(prev => [...prev.filter(p=>p.producto!==prod.producto), prod]);
   };
 
   const onBreakevenChange = async (sede, producto, value) => {
@@ -1241,6 +1262,6 @@ export default function Inventario({ user, conn }) {
   );
 
   return isAdmin
-    ? <InventarioAdmin records={records} user={user} conn={conn} onSaved={setRecords} catOverrides={catOverrides} breakevenMap={breakevenMap} onCatOverride={onCatOverride} onBreakevenChange={onBreakevenChange}/>
+    ? <InventarioAdmin records={records} user={user} conn={conn} onSaved={setRecords} catOverrides={catOverrides} breakevenMap={breakevenMap} onCatOverride={onCatOverride} onBreakevenChange={onBreakevenChange} extraProds={extraProds} onAddProd={onAddProd}/>
     : <InventarioCM user={user} records={records} onSaved={setRecords} conn={conn} breakevenMap={breakevenMap}/>;
 }

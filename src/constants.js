@@ -22,7 +22,7 @@ export const SEDES = [
   "Los Militares - NACE","Manuel Montt","Monjitas","MUT",
   "Neohaus","Nueva Las Condes","Plaza Ega\u00f1a","Principe de Gales",
   "Rosario Norte","S2GO","Salesforce","San Sebastian - MACH",
-  "Santa Lucia","Santa Rosa","StartupLab","Suecia","Tobalaba-P3","Vespucio",
+  "Santa Lucia","Startuplab.01","StartupLab","Suecia","Tobalaba-P3","Vespucio",
 ];
 export const USERS = [
   { name:"Luis Morales", email:"luis.morales@co-work.cl", role:"ops" },

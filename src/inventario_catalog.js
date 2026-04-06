@@ -337,7 +337,7 @@ export const INVENTARIO_CATALOG = {
     { proveedor: "Cafetería", producto: "Servilletas", min_stock: 3, categoria: "Cafetería" },
     { proveedor: "Cafetería", producto: "Toalla de Papel", min_stock: 2, categoria: "Papelería" },
   ],
-  "Santa Rosa": [
+  "Startuplab.01": [
     { proveedor: "Aseo", producto: "Bolsas 50x70", min_stock: 3, categoria: "Aseo" },
     { proveedor: "Aseo", producto: "Bolsas 70x90", min_stock: 5, categoria: "Aseo" },
     { proveedor: "Aseo", producto: "Bolsas 80x110", min_stock: 7, categoria: "Aseo" },
@@ -445,4 +445,4 @@ export const INVENTARIO_CATALOG = {
   "S2GO": [],
   "Salesforce": [],
 };
-export const INVENTARIO_SEDES = ["Abedules", "Alto el Golf", "Apoquindo", "Cerro el Plomo", "Chery", "Coldwell", "Florida Center", "Isidora", "Kennedy", "Liquidos", "Londres 43 - PPD", "Los Militares - NACE", "Manuel Montt", "Monjitas", "Neohaus", "Nueva Las Condes", "Plaza Egaña", "S2GO", "Salesforce", "Santa Lucia", "Santa Rosa", "Suecia", "Tobalaba-P3", "Vespucio"];
+export const INVENTARIO_SEDES = ["Abedules", "Alto el Golf", "Apoquindo", "Cerro el Plomo", "Chery", "Coldwell", "Florida Center", "Isidora", "Kennedy", "Liquidos", "Londres 43 - PPD", "Los Militares - NACE", "Manuel Montt", "Monjitas", "Neohaus", "Nueva Las Condes", "Plaza Egaña", "S2GO", "Salesforce", "Santa Lucia", "Startuplab.01", "Suecia", "Tobalaba-P3", "Vespucio"];
