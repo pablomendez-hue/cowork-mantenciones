@@ -75,6 +75,15 @@ function buildTrendMap(liveRecords) {
   return map;
 }
 
+// Returns Set of product names that were globally deleted via UI
+function parseDeletedProds(configRows) {
+  const s = new Set();
+  for (const r of configRows) {
+    if (r.tipo === "prod_global" && r.clave && r.valor === "deleted") s.add(r.clave);
+  }
+  return s;
+}
+
 // ── Semáforo ──────────────────────────────────────────────────────────────────
 function getLevel(cantidad, min_stock) {
   if (cantidad==null) return "nd";
@@ -415,7 +424,7 @@ function MatrixTable({ latestMap, filtCat, onSedeClick, activeSedeCol, catOverri
 // ══════════════════════════════════════════════════════════════════════════════
 // ADMIN VIEW
 // ══════════════════════════════════════════════════════════════════════════════
-function InventarioAdmin({ records, user, conn, onSaved, catOverrides={}, breakevenMap={}, onCatOverride, onBreakevenChange, extraProds=[], onAddProd, onRemoveProd }) {
+function InventarioAdmin({ records, user, conn, onSaved, catOverrides={}, breakevenMap={}, onCatOverride, onBreakevenChange, extraProds=[], onAddProd, onRemoveProd, deletedProds=new Set(), onDeleteCatalogProd }) {
   const [tab, setTab] = useState("resumen");
   const [filtCat, setFiltCat] = useState("");
   const [activeSedeCol, setActiveSedeCol] = useState(null);
@@ -459,7 +468,7 @@ function InventarioAdmin({ records, user, conn, onSaved, catOverrides={}, breake
             Salir del preview
           </button>
         </div>
-        <FormRegistro sede={previewSede} records={records} user={user} conn={conn} onSaved={onSaved} isPreview breakevenMap={breakevenMap} onBreakevenChange={onBreakevenChange} globalExtraProds={extraProds} onAddProd={onAddProd}/>
+        <FormRegistro sede={previewSede} records={records} user={user} conn={conn} onSaved={onSaved} isPreview breakevenMap={breakevenMap} onBreakevenChange={onBreakevenChange} globalExtraProds={extraProds} onAddProd={onAddProd} deletedProds={deletedProds}/>
       </div>
     );
   }
@@ -523,7 +532,7 @@ function InventarioAdmin({ records, user, conn, onSaved, catOverrides={}, breake
                 {INVENTARIO_SEDES.map(s=><option key={s} value={s}>{s}</option>)}
               </select>
             </div>
-            <FormRegistro sede={previewSede} records={records} user={user} conn={conn} onSaved={onSaved} breakevenMap={breakevenMap} onBreakevenChange={onBreakevenChange} globalExtraProds={extraProds}
+            <FormRegistro sede={previewSede} records={records} user={user} conn={conn} onSaved={onSaved} breakevenMap={breakevenMap} onBreakevenChange={onBreakevenChange} globalExtraProds={extraProds} deletedProds={deletedProds}
               onDeleteRecord={id=>{ const upd=records.filter(x=>x.id!==id); onSaved(upd); setCached(upd); if(conn) deleteInventarioRecord(id).catch(console.error); }}/>
           </div>
         )}
@@ -541,7 +550,7 @@ function InventarioAdmin({ records, user, conn, onSaved, catOverrides={}, breake
               onRecordDelete={id=>{ const upd=records.filter(x=>x.id!==id); onSaved(upd); setCached(upd); if(conn) deleteInventarioRecord(id).catch(console.error); }}/>
           </div>
         )}
-        {tab==="directorio"&&<DirectorioCM conn={conn} catOverrides={catOverrides} onCatOverride={onCatOverride} extraProds={extraProds} onAddProd={onAddProd} onRemoveProd={onRemoveProd}/>}
+        {tab==="directorio"&&<DirectorioCM conn={conn} catOverrides={catOverrides} onCatOverride={onCatOverride} extraProds={extraProds} onAddProd={onAddProd} onRemoveProd={onRemoveProd} deletedProds={deletedProds} onDeleteCatalogProd={onDeleteCatalogProd}/>}
       </div>
     </div>
   );
@@ -599,7 +608,7 @@ function ColPE({ sede, producto, be, histSorted, hasHist, breakevenMap, onBreake
 // ══════════════════════════════════════════════════════════════════════════════
 // FORMULARIO DE REGISTRO
 // ══════════════════════════════════════════════════════════════════════════════
-function FormRegistro({ sede, records=[], user, conn, onSaved, isPreview, breakevenMap={}, onBreakevenChange, globalExtraProds=[], onAddProd, onDeleteRecord }) {
+function FormRegistro({ sede, records=[], user, conn, onSaved, isPreview, breakevenMap={}, onBreakevenChange, globalExtraProds=[], onAddProd, onDeleteRecord, deletedProds=new Set() }) {
   const [tipo, setTipo] = useState("stock");
   const [fecha, setFecha] = useState(today());
   const [cantidades, setCantidades] = useState({});
@@ -612,10 +621,21 @@ function FormRegistro({ sede, records=[], user, conn, onSaved, isPreview, breake
   const [newProd, setNewProd] = useState({ producto:"", min_stock:1 });
   const [extraProds, setExtraProds] = useState(()=>getExtraProds(sede));
   const [hovEntry, setHovEntry] = useState(null);
+  const [hovRow, setHovRow] = useState(null);
   // Entradas ocultadas localmente (datos Excel que no se pueden borrar de Sheets)
   const [hiddenEntries, setHiddenEntries] = useState(()=>{
     try { return new Set(JSON.parse(localStorage.getItem(`cw_hidden_${sede}`)||"[]")); } catch { return new Set(); }
   });
+  // Productos ocultados localmente para esta sede
+  const [hiddenProds, setHiddenProds] = useState(()=>{
+    try { return new Set(JSON.parse(localStorage.getItem(`cw_hidden_prods_${sede}`)||"[]")); } catch { return new Set(); }
+  });
+
+  const hideProd = (producto) => {
+    const next = new Set([...hiddenProds, producto]);
+    setHiddenProds(next);
+    localStorage.setItem(`cw_hidden_prods_${sede}`, JSON.stringify([...next]));
+  };
   // Mapas calculados internamente desde records → se actualizan solos al guardar
   const latestMap = useMemo(()=>buildLatestMap(records),[records]);
   const trendMap  = useMemo(()=>buildTrendMap(records),[records]);
@@ -630,10 +650,12 @@ function FormRegistro({ sede, records=[], user, conn, onSaved, isPreview, breake
   };
 
   // Merge catalog + extra products (localStorage + global from Sheets)
-  const catalogProds = INVENTARIO_CATALOG[sede]||[];
+  // Catalog products: filter globally deleted + locally hidden
+  const catalogProds = (INVENTARIO_CATALOG[sede]||[]).filter(p=>!deletedProds.has(p.producto)&&!hiddenProds.has(p.producto));
   const allSedeProds = [...catalogProds];
+  // Extra products: only filter globally deleted (not locally hidden — re-adding via form overrides local hide)
   for (const ep of [...extraProds, ...globalExtraProds]) {
-    if (!allSedeProds.some(p=>p.producto===ep.producto)) allSedeProds.push(ep);
+    if (!allSedeProds.some(p=>p.producto===ep.producto) && !deletedProds.has(ep.producto)) allSedeProds.push(ep);
   }
 
   // Products from other sedes not yet in this sede (for the "add" dropdown)
@@ -813,20 +835,31 @@ function FormRegistro({ sede, records=[], user, conn, onSaved, isPreview, breake
                       const hasHist=histSorted.length>=2;
                       const dotColor=level==="nd"?"#d4d4d4":level==="ok"?"#22c55e":level==="amarillo"?"#f59e0b":"#ef4444";
                       return (
-                        <div key={fkey} style={{ display:"flex",alignItems:"stretch",
+                        <div key={fkey}
+                          onMouseEnter={()=>{ if(isAdmin) setHovRow(fkey); }}
+                          onMouseLeave={()=>setHovRow(null)}
+                          style={{ display:"flex",alignItems:"stretch",
                           borderBottom:idx<subProds.length-1?"1px dashed #e8e8e8":"none",
                           background:val!==""?"#f7fffe":"transparent",minHeight:42 }}>
                           {/* Col 1: product name */}
                           <div style={{ width:170,flexShrink:0,padding:"6px 10px",display:"flex",alignItems:"center",gap:6,borderRight:"1px dashed #e0e0e0",
                             background:level==="rojo"?"#fef2f2":level==="amarillo"?"#fffbeb":"transparent" }}>
                             <span style={{ width:5,height:5,borderRadius:99,background:dotColor,flexShrink:0 }}/>
-                            <div style={{ minWidth:0 }}>
+                            <div style={{ minWidth:0,flex:1 }}>
                               <div style={{ fontSize:11,fontWeight:600,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis" }}>{p.producto}</div>
                               <div style={{ fontSize:8,color:"#b3b3b3",marginTop:1 }}>
                                 mín {p.min_stock}{be>0?` · eq.${Math.round(be)}`:""}{last?` · últ.`:""}
                                 {last&&<strong style={{ color:cs.color }}>{last.cantidad}</strong>}
                               </div>
                             </div>
+                            {isAdmin&&hovRow===fkey&&(
+                              <button
+                                onClick={e=>{ e.stopPropagation(); if(window.confirm(`¿Ocultar "${p.producto}" de ${sede}?\nSe ocultará de esta sede. Puedes volver a agregarlo desde el formulario.`)) { hideProd(p.producto); setHovRow(null); } }}
+                                title="Ocultar insumo de esta sede"
+                                style={{ flexShrink:0,background:"none",border:"none",cursor:"pointer",color:"#ef4444",padding:"1px 2px" }}>
+                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                              </button>
+                            )}
                           </div>
                           {/* Col 2: 12 history entries */}
                           <div style={{ flex:1,minWidth:0,overflowX:"auto",display:"flex",alignItems:"center",borderRight:"1px dashed #e0e0e0" }}>
@@ -969,7 +1002,7 @@ function FormRegistro({ sede, records=[], user, conn, onSaved, isPreview, breake
 // ══════════════════════════════════════════════════════════════════════════════
 // CM VIEW
 // ══════════════════════════════════════════════════════════════════════════════
-function InventarioCM({ user, records, onSaved, conn, breakevenMap={}, globalExtraProds=[], onAddProd }) {
+function InventarioCM({ user, records, onSaved, conn, breakevenMap={}, globalExtraProds=[], onAddProd, deletedProds=new Set() }) {
   const sede = getCMSede(user.email);
   const [tab, setTab] = useState("registrar");
   const latestMap = useMemo(()=>buildLatestMap(records),[records]);
@@ -1004,7 +1037,7 @@ function InventarioCM({ user, records, onSaved, conn, breakevenMap={}, globalExt
         </div>
       </div>
       <div style={{ flex:1,overflowY:"auto",overflowX:"auto",padding:"20px 24px" }}>
-        {tab==="registrar"&&<FormRegistro sede={sede} records={records} user={user} conn={conn} onSaved={onSaved} breakevenMap={breakevenMap} globalExtraProds={globalExtraProds} onAddProd={onAddProd}
+        {tab==="registrar"&&<FormRegistro sede={sede} records={records} user={user} conn={conn} onSaved={onSaved} breakevenMap={breakevenMap} globalExtraProds={globalExtraProds} onAddProd={onAddProd} deletedProds={deletedProds}
           onDeleteRecord={id=>{ const upd=records.filter(x=>x.id!==id); onSaved(upd); setCached(upd); if(conn) deleteInventarioRecord(id).catch(console.error); }}/>}
         {tab==="historial"&&<HistorialSede sede={sede} records={records} latestMap={latestMap}
           canDelete={true}
@@ -1137,7 +1170,7 @@ function HistorialSede({ sede, records, latestMap, onRecordUpdate, canDelete, on
 }
 
 // ── Directorio ─────────────────────────────────────────────────────────────────
-function DirectorioCM({ conn, catOverrides, onCatOverride, extraProds=[], onAddProd, onRemoveProd }) {
+function DirectorioCM({ conn, catOverrides, onCatOverride, extraProds=[], onAddProd, onRemoveProd, deletedProds=new Set(), onDeleteCatalogProd }) {
   const [subTab, setSubTab] = useState("comerciales");
   const [map, setMap] = useState(getSedeCMMap());
   const [syncing, setSyncing] = useState(null);
@@ -1151,10 +1184,12 @@ function DirectorioCM({ conn, catOverrides, onCatOverride, extraProds=[], onAddP
   const extraProdNames = useMemo(()=>new Set(extraProds.map(p=>p.producto)),[extraProds]);
 
   const handleDeleteProd = async (producto) => {
+    if (!window.confirm(`¿Eliminar insumo "${producto}"?\nDesaparecerá del catálogo global.`)) return;
     setDeletingProd(producto);
     try {
       if (conn) await upsertConfig("prod_global", producto, "deleted");
-      if (onRemoveProd) onRemoveProd(producto);
+      onRemoveProd?.(producto);       // removes from extraProds if applicable
+      onDeleteCatalogProd?.(producto); // marks catalog prod as deleted
     } catch(e) { console.error(e); }
     finally { setDeletingProd(null); }
   };
@@ -1211,26 +1246,26 @@ function DirectorioCM({ conn, catOverrides, onCatOverride, extraProds=[], onAddP
     finally { setSavingNew(false); }
   };
 
-  // Build unique product list with current categories
+  // Build unique product list with current categories (excluding globally deleted)
   const allProducts = useMemo(()=>{
     const seen = new Set();
     const out = [];
     for (const prods of Object.values(INVENTARIO_CATALOG)) {
       for (const p of prods) {
-        if (!seen.has(p.producto)) {
+        if (!seen.has(p.producto) && !deletedProds.has(p.producto)) {
           seen.add(p.producto);
           out.push({ producto: p.producto, categoriaBase: p.categoria, subcategoria: p.subcategoria||null });
         }
       }
     }
     for (const p of extraProds) {
-      if (!seen.has(p.producto)) {
+      if (!seen.has(p.producto) && !deletedProds.has(p.producto)) {
         seen.add(p.producto);
         out.push({ producto: p.producto, categoriaBase: p.categoria, subcategoria: null });
       }
     }
     return out.sort((a,b)=>a.producto.localeCompare(b.producto));
-  },[extraProds]);
+  },[extraProds, deletedProds]);
 
   const subBtn = (id, label) => (
     <button onClick={()=>setSubTab(id)} style={{
@@ -1339,15 +1374,13 @@ function DirectorioCM({ conn, catOverrides, onCatOverride, extraProds=[], onAddP
                               style={{ fontSize:10,color:"#6366f1",background:"none",border:"1px solid #e0e0ff",borderRadius:5,padding:"3px 9px",cursor:"pointer",fontFamily:"'Sora',sans-serif" }}>
                               Cambiar cat.
                             </button>
-                            {extraProdNames.has(p.producto)&&(
-                              <button
-                                onClick={()=>handleDeleteProd(p.producto)}
-                                disabled={deletingProd===p.producto}
-                                style={{ background:"none",border:"1px solid #fecaca",borderRadius:5,padding:"3px 7px",cursor:"pointer",color:deletingProd===p.producto?"#e0e0e0":"#ef4444",fontSize:10,display:"flex",alignItems:"center" }}
-                                title="Eliminar insumo">
-                                {deletingProd===p.producto?"…":<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>}
-                              </button>
-                            )}
+                            <button
+                              onClick={()=>handleDeleteProd(p.producto)}
+                              disabled={deletingProd===p.producto}
+                              style={{ background:"none",border:"1px solid #fecaca",borderRadius:5,padding:"3px 7px",cursor:"pointer",color:deletingProd===p.producto?"#e0e0e0":"#ef4444",fontSize:10,display:"flex",alignItems:"center" }}
+                              title="Eliminar insumo">
+                              {deletingProd===p.producto?"…":<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>}
+                            </button>
                           </div>
                         )}
                       </div>
@@ -1409,6 +1442,7 @@ export default function Inventario({ user, conn }) {
   const [catOverrides, setCatOverrides] = useState({});
   const [breakevenMap, setBreakevenMap] = useState({});
   const [extraProds, setExtraProds] = useState([]);
+  const [deletedProds, setDeletedProds] = useState(new Set());
 
   useEffect(()=>{
     if (!conn) return;
@@ -1419,10 +1453,15 @@ export default function Inventario({ user, conn }) {
         setCatOverrides(parseProdCat(configRows));
         setBreakevenMap(parseBreakeven(configRows));
         setExtraProds(parseProdGlobal(configRows));
+        setDeletedProds(parseDeletedProds(configRows));
       })
       .catch(e=>console.error(e))
       .finally(()=>setLoading(false));
   },[conn]);
+
+  const onDeleteCatalogProd = (producto) => {
+    setDeletedProds(prev => new Set([...prev, producto]));
+  };
 
   const onCatOverride = async (producto, categoria) => {
     const next = { ...catOverrides, [producto]: categoria };
@@ -1460,6 +1499,6 @@ export default function Inventario({ user, conn }) {
   );
 
   return isAdmin
-    ? <InventarioAdmin records={records} user={user} conn={conn} onSaved={setRecords} catOverrides={catOverrides} breakevenMap={breakevenMap} onCatOverride={onCatOverride} onBreakevenChange={onBreakevenChange} extraProds={extraProds} onAddProd={onAddProd} onRemoveProd={onRemoveProd}/>
-    : <InventarioCM user={user} records={records} onSaved={setRecords} conn={conn} breakevenMap={breakevenMap} globalExtraProds={extraProds} onAddProd={onAddProd}/>;
+    ? <InventarioAdmin records={records} user={user} conn={conn} onSaved={setRecords} catOverrides={catOverrides} breakevenMap={breakevenMap} onCatOverride={onCatOverride} onBreakevenChange={onBreakevenChange} extraProds={extraProds} onAddProd={onAddProd} onRemoveProd={onRemoveProd} deletedProds={deletedProds} onDeleteCatalogProd={onDeleteCatalogProd}/>
+    : <InventarioCM user={user} records={records} onSaved={setRecords} conn={conn} breakevenMap={breakevenMap} globalExtraProds={extraProds} onAddProd={onAddProd} deletedProds={deletedProds}/>;
 }
