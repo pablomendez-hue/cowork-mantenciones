@@ -34,8 +34,21 @@ function daysAgo(d) {
   return Math.floor((new Date()-dt)/86400000);
 }
 
+// Normaliza fechas de cualquier formato a ISO YYYY-MM-DD
+function normalizeDate(d) {
+  if (!d) return "";
+  if (/^\d{4}-\d{2}-\d{2}$/.test(d)) return d;
+  // DD/MM-YYYY o DD/MM/YYYY o DD-MM-YYYY
+  const m = d.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+  if (m) return `${m[3]}-${m[2].padStart(2,"0")}-${m[1].padStart(2,"0")}`;
+  return d;
+}
+
 function buildLatestMap(liveRecords) {
-  const map = { ...INVENTARIO_EXCEL_LATEST };
+  const map = {};
+  for (const [k,v] of Object.entries(INVENTARIO_EXCEL_LATEST)) {
+    map[k] = { fecha: normalizeDate(v.fecha), cantidad: v.cantidad };
+  }
   for (const r of liveRecords) {
     if (r.tipo !== "stock") continue;
     const key = `${r.sede}||${r.proveedor}||${r.producto}`;
@@ -46,16 +59,18 @@ function buildLatestMap(liveRecords) {
 
 function buildTrendMap(liveRecords) {
   const map = {};
-  for (const [k,v] of Object.entries(INVENTARIO_EXCEL_TREND)) map[k] = [...v];
+  for (const [k,v] of Object.entries(INVENTARIO_EXCEL_TREND)) map[k] = v.map(([f,q])=>[normalizeDate(f),q]);
   for (const r of liveRecords) {
     if (r.tipo !== "stock") continue;
     const key = `${r.sede}||${r.proveedor}||${r.producto}`;
     if (!map[key]) map[key] = [];
     map[key].push([r.fecha, r.cantidad]);
   }
-  // sort each and keep last 12
+  // Deduplicar por fecha (live wins over Excel), ordenar asc, keepear las últimas 12
   for (const k of Object.keys(map)) {
-    map[k] = map[k].sort((a,b)=>a[0].localeCompare(b[0])).slice(-12);
+    const byDate = {};
+    for (const [f,q] of map[k]) { if(f) byDate[f] = q; } // última escritura gana (live sobreescribe Excel)
+    map[k] = Object.entries(byDate).sort((a,b)=>a[0].localeCompare(b[0])).slice(-12);
   }
   return map;
 }
@@ -197,7 +212,7 @@ function SparkCM({ data, breakeven, width=220, height=32 }) {
 // ══════════════════════════════════════════════════════════════════════════════
 // SEDE DETAIL PANEL
 // ══════════════════════════════════════════════════════════════════════════════
-function SedePanel({ sede, latestMap, trendMap, onClose }) {
+function SedePanel({ sede, latestMap, trendMap, onClose, records=[] }) {
   const [showOK, setShowOK] = useState(false);
   const rawProds = INVENTARIO_CATALOG[sede] || [];
 
@@ -222,9 +237,12 @@ function SedePanel({ sede, latestMap, trendMap, onClose }) {
   const pedir = prodStatus.filter(p=>p.level==="rojo"||p.level==="amarillo");
   const ok    = prodStatus.filter(p=>p.level!=="rojo"&&p.level!=="amarillo");
 
-  const lastDate = Object.entries(latestMap)
-    .filter(([k])=>k.startsWith(sede+"||"))
-    .map(([,v])=>v.fecha).sort().reverse()[0];
+  // Use all record types (stock + compra) so "último registro" reflects any activity
+  const lastDate = (() => {
+    const fromRecords = records.filter(r=>r.sede===sede&&r.fecha).map(r=>r.fecha).sort().reverse()[0];
+    const fromMap = Object.entries(latestMap).filter(([k])=>k.startsWith(sede+"||")).map(([,v])=>v.fecha).sort().reverse()[0];
+    return fromRecords ?? fromMap;
+  })();
 
   const ProdCard = ({p}) => {
     const cs=CELL_STYLE[p.level];
@@ -441,7 +459,7 @@ function InventarioAdmin({ records, user, conn, onSaved, catOverrides={}, breake
             Salir del preview
           </button>
         </div>
-        <FormRegistro sede={previewSede} latestMap={latestMap} trendMap={trendMap} user={user} conn={conn} onSaved={onSaved} isPreview breakevenMap={breakevenMap} onBreakevenChange={onBreakevenChange} globalExtraProds={extraProds}/>
+        <FormRegistro sede={previewSede} records={records} user={user} conn={conn} onSaved={onSaved} isPreview breakevenMap={breakevenMap} onBreakevenChange={onBreakevenChange} globalExtraProds={extraProds} onAddProd={onAddProd}/>
       </div>
     );
   }
@@ -493,7 +511,7 @@ function InventarioAdmin({ records, user, conn, onSaved, catOverrides={}, breake
           <>
             <MatrixTable latestMap={latestMap} filtCat={filtCat} onSedeClick={setActiveSedeCol} activeSedeCol={activeSedeCol} catOverrides={catOverrides}/>
             {activeSedeCol&&(
-              <SedePanel sede={activeSedeCol} latestMap={latestMap} trendMap={trendMap} onClose={()=>setActiveSedeCol(null)}/>
+              <SedePanel sede={activeSedeCol} latestMap={latestMap} trendMap={trendMap} onClose={()=>setActiveSedeCol(null)} records={records}/>
             )}
           </>
         )}
@@ -505,7 +523,8 @@ function InventarioAdmin({ records, user, conn, onSaved, catOverrides={}, breake
                 {INVENTARIO_SEDES.map(s=><option key={s} value={s}>{s}</option>)}
               </select>
             </div>
-            <FormRegistro sede={previewSede} latestMap={latestMap} trendMap={trendMap} user={user} conn={conn} onSaved={onSaved} breakevenMap={breakevenMap} onBreakevenChange={onBreakevenChange} globalExtraProds={extraProds}/>
+            <FormRegistro sede={previewSede} records={records} user={user} conn={conn} onSaved={onSaved} breakevenMap={breakevenMap} onBreakevenChange={onBreakevenChange} globalExtraProds={extraProds}
+              onDeleteRecord={id=>{ const upd=records.filter(x=>x.id!==id); onSaved(upd); setCached(upd); if(conn) deleteInventarioRecord(id).catch(console.error); }}/>
           </div>
         )}
         {tab==="historial"&&(
@@ -519,7 +538,7 @@ function InventarioAdmin({ records, user, conn, onSaved, catOverrides={}, breake
             <HistorialSede sede={previewSede} records={records} latestMap={latestMap}
               onRecordUpdate={r=>{ const upd=records.map(x=>x.id===r.id?r:x); onSaved(upd); setCached(upd); }}
               canDelete={true}
-              onRecordDelete={id=>{ const upd=records.filter(x=>x.id!==id); onSaved(upd); setCached(upd); }}/>
+              onRecordDelete={id=>{ const upd=records.filter(x=>x.id!==id); onSaved(upd); setCached(upd); if(conn) deleteInventarioRecord(id).catch(console.error); }}/>
           </div>
         )}
         {tab==="directorio"&&<DirectorioCM conn={conn} catOverrides={catOverrides} onCatOverride={onCatOverride} extraProds={extraProds} onAddProd={onAddProd} onRemoveProd={onRemoveProd}/>}
@@ -580,20 +599,40 @@ function ColPE({ sede, producto, be, histSorted, hasHist, breakevenMap, onBreake
 // ══════════════════════════════════════════════════════════════════════════════
 // FORMULARIO DE REGISTRO
 // ══════════════════════════════════════════════════════════════════════════════
-function FormRegistro({ sede, latestMap, trendMap, user, conn, onSaved, isPreview, breakevenMap={}, onBreakevenChange, globalExtraProds=[] }) {
+function FormRegistro({ sede, records=[], user, conn, onSaved, isPreview, breakevenMap={}, onBreakevenChange, globalExtraProds=[], onAddProd, onDeleteRecord }) {
   const [tipo, setTipo] = useState("stock");
   const [fecha, setFecha] = useState(today());
   const [cantidades, setCantidades] = useState({});
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState(null);
+  const [lastSavedInfo, setLastSavedInfo] = useState(null);
+  const pendingRef = useRef(null);
   const [showAddForm, setShowAddForm] = useState(null);
   const [newProd, setNewProd] = useState({ producto:"", min_stock:1 });
   const [extraProds, setExtraProds] = useState(()=>getExtraProds(sede));
+  const [hovEntry, setHovEntry] = useState(null);
+  // Entradas ocultadas localmente (datos Excel que no se pueden borrar de Sheets)
+  const [hiddenEntries, setHiddenEntries] = useState(()=>{
+    try { return new Set(JSON.parse(localStorage.getItem(`cw_hidden_${sede}`)||"[]")); } catch { return new Set(); }
+  });
+  // Mapas calculados internamente desde records → se actualizan solos al guardar
+  const latestMap = useMemo(()=>buildLatestMap(records),[records]);
+  const trendMap  = useMemo(()=>buildTrendMap(records),[records]);
+  const isAdmin = user?.role==="admin"||user?.role==="ops";
 
-  // Merge catalog + extra products
+  const hideEntry = (mkey, f, liveRec) => {
+    const key = `${mkey}||${f}`;
+    const next = new Set([...hiddenEntries, key]);
+    setHiddenEntries(next);
+    localStorage.setItem(`cw_hidden_${sede}`, JSON.stringify([...next]));
+    if (liveRec) onDeleteRecord?.(liveRec.id);
+  };
+
+  // Merge catalog + extra products (localStorage + global from Sheets)
   const catalogProds = INVENTARIO_CATALOG[sede]||[];
   const allSedeProds = [...catalogProds];
-  for (const ep of extraProds) {
+  for (const ep of [...extraProds, ...globalExtraProds]) {
     if (!allSedeProds.some(p=>p.producto===ep.producto)) allSedeProds.push(ep);
   }
 
@@ -619,13 +658,19 @@ function FormRegistro({ sede, latestMap, trendMap, user, conn, onSaved, isPrevie
     return out.sort((a,b)=>a.producto.localeCompare(b.producto));
   },[allSedeProds, globalExtraProds]);
 
-  const handleAddProd = (cat) => {
+  const handleAddProd = (cat, subcat) => {
     if (!newProd.producto) return;
     const ref = Object.values(INVENTARIO_CATALOG).flat().find(p=>p.producto===newProd.producto);
-    const np = { proveedor:ref?.proveedor||"Otro", producto:newProd.producto, categoria:cat, subcategoria:ref?.subcategoria||null, min_stock:Math.max(1,Number(newProd.min_stock)||1) };
+    const np = { proveedor:ref?.proveedor||"Otro", producto:newProd.producto, categoria:cat, subcategoria:subcat!==undefined?subcat:(ref?.subcategoria||null), min_stock:Math.max(1,Number(newProd.min_stock)||1) };
     const updated = [...extraProds, np];
     setExtraProds(updated);
     saveExtraProds(sede, updated);
+    // Sync to Sheets so all users/devices see the new product
+    if (conn && !isPreview) {
+      upsertConfig("prod_global", np.producto, JSON.stringify({ categoria:np.categoria, proveedor:np.proveedor, min_stock:np.min_stock })).catch(console.error);
+    }
+    // Update root state so admin/ops see it immediately in same session
+    onAddProd?.(np);
     setNewProd({ producto:"", min_stock:1 });
     setShowAddForm(null);
   };
@@ -637,11 +682,14 @@ function FormRegistro({ sede, latestMap, trendMap, user, conn, onSaved, isPrevie
     const entries = Object.entries(cantidades).filter(([,v])=>v!==""&&v!==null&&!isNaN(v));
     if (!entries.length) return;
     setSaving(true);
+    setSaveError(null);
+    setSaved(false);
     const ts_now = Date.now();
     const newR = entries.map(([key,cantidad],i)=>{
       const [proveedor,producto]=key.split("|||");
       return { id:String(ts_now+i),sede,proveedor,producto,fecha,cantidad:Number(cantidad),tipo,registrado_por:user?.name||"Admin" };
     });
+    pendingRef.current = { newR, fecha };
     try {
       if (conn&&!isPreview) await saveInventarioRegistro(newR);
       if (!isPreview) {
@@ -650,10 +698,39 @@ function FormRegistro({ sede, latestMap, trendMap, user, conn, onSaved, isPrevie
         onSaved?.(updated);
       }
       setCantidades({});
+      setLastSavedInfo({ count:newR.length, fecha, registrado_por:user?.name||"Admin" });
       setSaved(true);
-      setTimeout(()=>setSaved(false),3000);
-    } catch(e) { console.error(e); }
-    finally { setSaving(false); }
+      setTimeout(()=>setSaved(false), 8000);
+    } catch(e) {
+      console.error(e);
+      setSaveError("No se pudo guardar en Google Sheets. Verifica la conexión e intenta de nuevo.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleRetry = async () => {
+    if (!pendingRef.current) return;
+    const { newR, fecha:savedFecha } = pendingRef.current;
+    setSaving(true);
+    setSaveError(null);
+    try {
+      if (conn&&!isPreview) await saveInventarioRegistro(newR);
+      if (!isPreview) {
+        const updated=[...getCached(),...newR];
+        setCached(updated);
+        onSaved?.(updated);
+      }
+      setLastSavedInfo({ count:newR.length, fecha:savedFecha, registrado_por:user?.name||"Admin" });
+      setSaved(true);
+      setTimeout(()=>setSaved(false), 8000);
+      pendingRef.current = null;
+    } catch(e) {
+      console.error(e);
+      setSaveError("Error al guardar. Intenta nuevamente.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const filled = Object.values(cantidades).filter(v=>v!==""&&v!==null&&!isNaN(v)).length;
@@ -727,7 +804,8 @@ function FormRegistro({ sede, latestMap, trendMap, user, conn, onSaved, isPrevie
                       const mkey=`${sede}||${p.proveedor}||${p.producto}`;
                       const last=latestMap?.[mkey];
                       const hist=trendMap?.[mkey];
-                      const histSorted=hist?[...hist].sort((a,b)=>a[0].localeCompare(b[0])):[];
+                      const histSorted=(hist?[...hist].sort((a,b)=>a[0].localeCompare(b[0])):[])
+                        .filter(([f])=>!hiddenEntries.has(`${mkey}||${f}`));
                       const be=histSorted.length?median(histSorted.map(([,v])=>v)):0;
                       const level=getLevel(last?.cantidad??null,p.min_stock);
                       const cs=CELL_STYLE[level];
@@ -754,16 +832,31 @@ function FormRegistro({ sede, latestMap, trendMap, user, conn, onSaved, isPrevie
                           <div style={{ flex:1,minWidth:0,overflowX:"auto",display:"flex",alignItems:"center",borderRight:"1px dashed #e0e0e0" }}>
                             {histSorted.length===0
                               ?<span style={{ fontSize:9,color:"#d4d4d4",padding:"0 14px",fontStyle:"italic" }}>sin registros</span>
-                              :histSorted.map(([f,q],i)=>(
-                                <div key={i} style={{ flexShrink:0,textAlign:"center",
-                                  borderRight:i<histSorted.length-1?"1px dashed #f0f0f0":"none",
-                                  padding:"4px 6px",minWidth:44 }}>
-                                  <div style={{ fontSize:8,color:"#a3a3a3",marginBottom:2,whiteSpace:"nowrap" }}>{fdate(f)}</div>
-                                  <div style={{ fontSize:12,fontWeight:700,
-                                    color:q>=be&&be>0?"#16a34a":q>0?"#b45309":"#dc2626",
-                                    fontFamily:"'Consolas','Courier New',monospace" }}>{q}</div>
-                                </div>
-                              ))
+                              :histSorted.map(([f,q],i)=>{
+                                const entryKey=`${fkey}||${f}`;
+                                const isHov=isAdmin&&hovEntry===entryKey;
+                                const liveRec=isAdmin?records.find(r=>r.sede===sede&&r.proveedor===p.proveedor&&r.producto===p.producto&&r.fecha===f):null;
+                                return (
+                                  <div key={i}
+                                    onMouseEnter={()=>{ if(isAdmin) setHovEntry(entryKey); }}
+                                    onMouseLeave={()=>setHovEntry(null)}
+                                    style={{ flexShrink:0,textAlign:"center",position:"relative",
+                                      borderRight:i<histSorted.length-1?"1px dashed #f0f0f0":"none",
+                                      padding:"4px 6px",minWidth:44,
+                                      background:isHov?"#fff5f5":"transparent" }}>
+                                    <div style={{ fontSize:8,color:"#a3a3a3",marginBottom:2,whiteSpace:"nowrap" }}>{fdate(f)}</div>
+                                    <div style={{ fontSize:12,fontWeight:700,
+                                      color:q>=be&&be>0?"#16a34a":q>0?"#b45309":"#dc2626",
+                                      fontFamily:"'Consolas','Courier New',monospace" }}>{q}</div>
+                                    {isHov&&(
+                                      <button
+                                        onClick={e=>{ e.stopPropagation(); if(window.confirm(`¿Borrar entrada del ${fdate(f)} (${q})?`)) { hideEntry(mkey,f,liveRec); setHovEntry(null); } }}
+                                        title={liveRec?"Borrar de Sheets":"Ocultar entrada histórica"}
+                                        style={{ position:"absolute",top:1,right:1,background:"#ef4444",border:"none",borderRadius:3,color:"#fff",cursor:"pointer",fontSize:8,lineHeight:1,padding:"1px 3px",zIndex:1 }}>×</button>
+                                    )}
+                                  </div>
+                                );
+                              })
                             }
                           </div>
                           {/* Col 3: new entry input */}
@@ -777,32 +870,39 @@ function FormRegistro({ sede, latestMap, trendMap, user, conn, onSaved, isPrevie
                         </div>
                       );
                     })}
-                    {/* Add product button */}
+                    {/* Add product button — todos los disponibles de la cat, subcategoría fijada por sección */}
                     {!isPreview&&(()=>{
-                      const catAvailable=availableToAdd.filter(p=>p.categoria===cat);
-                      if(!catAvailable.length) return null;
-                      return showAddForm===cat?(
+                      const addKey=`${cat}||${sk}`;
+                      const isOpen=showAddForm===addKey;
+                      // Si hay un form abierto en OTRA sección, no mostrar botón aquí
+                      if(showAddForm&&!isOpen) return null;
+                      // Todos los productos disponibles de esta categoría (sin filtrar por subcat)
+                      const catAvail=availableToAdd.filter(p=>p.categoria===cat);
+                      if(!catAvail.length&&!isOpen) return null;
+                      const subLabel=sub===null?"Cafetería":sub;
+                      return isOpen?(
                         <div style={{ display:"flex",gap:6,alignItems:"center",padding:"7px 12px",borderTop:"1px dashed #e8e8e8",background:"#fafafa" }}>
+                          <div style={{ fontSize:9,color:"#6366f1",fontWeight:600,whiteSpace:"nowrap",fontFamily:"'Sora',sans-serif",flexShrink:0 }}>→ {subLabel}</div>
                           <select value={newProd.producto} onChange={e=>{
                             const prod=e.target.value;
-                            const ref=catAvailable.find(p=>p.producto===prod);
+                            const ref=catAvail.find(p=>p.producto===prod);
                             setNewProd({producto:prod,min_stock:ref?.min_stock||1});
                           }} style={{ ...I,flex:1,fontSize:11,fontFamily:"'Consolas','Courier New',monospace",cursor:"pointer" }}>
                             <option value="">Seleccionar producto…</option>
-                            {catAvailable.map(p=><option key={p.producto} value={p.producto}>{p.producto}</option>)}
+                            {catAvail.map(p=><option key={p.producto} value={p.producto}>{p.producto}</option>)}
                           </select>
                           <div style={{ display:"flex",flexDirection:"column",alignItems:"center",gap:1,flexShrink:0 }}>
                             <label style={{ fontSize:8,color:"#b3b3b3",textTransform:"uppercase",letterSpacing:"0.04em" }}>Mín.</label>
                             <input type="number" min="1" value={newProd.min_stock} onChange={e=>setNewProd(p=>({...p,min_stock:e.target.value}))} style={{ ...I,width:58,textAlign:"center",fontSize:11,padding:"5px 4px" }}/>
                           </div>
-                          <button onClick={()=>handleAddProd(cat)} disabled={!newProd.producto} style={{ ...BP,padding:"7px 12px",opacity:newProd.producto?1:0.35,flexShrink:0 }}>Agregar</button>
+                          <button onClick={()=>handleAddProd(cat,sub)} disabled={!newProd.producto} style={{ ...BP,padding:"7px 12px",opacity:newProd.producto?1:0.35,flexShrink:0 }}>Agregar</button>
                           <button onClick={()=>setShowAddForm(null)} style={{ background:"none",border:"1px solid #e5e5e5",borderRadius:7,padding:"7px 9px",cursor:"pointer",color:"#a3a3a3",fontSize:11,flexShrink:0 }}>✕</button>
                         </div>
                       ):(
                         <div style={{ padding:"5px 12px",borderTop:"1px dashed #e8e8e8" }}>
-                          <button onClick={()=>setShowAddForm(cat)} style={{ fontSize:10,color:"#6366f1",background:"none",border:"none",cursor:"pointer",fontFamily:"'Sora',sans-serif",padding:0,display:"flex",alignItems:"center",gap:4 }}>
+                          <button onClick={()=>{ setNewProd({producto:"",min_stock:1}); setShowAddForm(addKey); }} style={{ fontSize:10,color:"#6366f1",background:"none",border:"none",cursor:"pointer",fontFamily:"'Sora',sans-serif",padding:0,display:"flex",alignItems:"center",gap:4 }}>
                             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                            Agregar producto
+                            Agregar producto a {subLabel}
                           </button>
                         </div>
                       );
@@ -817,14 +917,51 @@ function FormRegistro({ sede, latestMap, trendMap, user, conn, onSaved, isPrevie
 
       <div style={{ display:"flex",justifyContent:"flex-end",gap:10,marginTop:4,paddingBottom:32 }}>
         {isPreview&&<span style={{ fontSize:11,color:"#a3a3a3",alignSelf:"center" }}>Modo preview — no se guardan datos</span>}
-        {saved&&<div style={{ display:"flex",alignItems:"center",gap:6,fontSize:12,color:"#16a34a" }}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-          Registrado
-        </div>}
         <button onClick={handleGuardar} disabled={!filled||saving||isPreview} style={{ ...BP,opacity:filled&&!saving&&!isPreview?1:0.35 }}>
-          {saving?"Guardando…":`Guardar${filled>0?` (${filled})`:""}`}
+          {saving
+            ? <><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ animation:"spin 1s linear infinite" }}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>Guardando en Sheets…</>
+            : `Guardar${filled>0?` (${filled})`:""}`}
         </button>
       </div>
+
+      {/* Toast de confirmación / error — fijo en pantalla */}
+      {(saved||saveError)&&(
+        <div style={{ position:"fixed",bottom:28,left:"50%",transform:"translateX(-50%)",zIndex:9999,fontFamily:"'Sora',sans-serif" }}>
+          {saved&&(
+            <div style={{ background:"#f0fdf4",border:"1.5px solid #86efac",borderRadius:14,padding:"14px 18px",display:"flex",alignItems:"center",gap:12,boxShadow:"0 8px 32px rgba(0,0,0,0.18)",minWidth:320,maxWidth:480 }}>
+              <div style={{ width:36,height:36,borderRadius:99,background:"#22c55e",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0 }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <div style={{ flex:1 }}>
+                <div style={{ fontSize:13,fontWeight:700,color:"#15803d" }}>Guardado en Google Sheets</div>
+                <div style={{ fontSize:10,color:"#16a34a",marginTop:3 }}>
+                  {lastSavedInfo?.count} producto{lastSavedInfo?.count!==1?"s":""} · {sede} · {fdate(lastSavedInfo?.fecha)} · {lastSavedInfo?.registrado_por}
+                </div>
+              </div>
+              <button onClick={()=>setSaved(false)} style={{ background:"none",border:"none",cursor:"pointer",color:"#86efac",padding:4,flexShrink:0 }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+          )}
+          {saveError&&(
+            <div style={{ background:"#fef2f2",border:"1.5px solid #fca5a5",borderRadius:14,padding:"14px 18px",display:"flex",alignItems:"center",gap:12,boxShadow:"0 8px 32px rgba(0,0,0,0.18)",minWidth:320,maxWidth:480 }}>
+              <div style={{ width:36,height:36,borderRadius:99,background:"#ef4444",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0 }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </div>
+              <div style={{ flex:1 }}>
+                <div style={{ fontSize:13,fontWeight:700,color:"#dc2626" }}>Error al guardar</div>
+                <div style={{ fontSize:10,color:"#ef4444",marginTop:3 }}>{saveError}</div>
+              </div>
+              <button onClick={handleRetry} disabled={saving} style={{ ...BP,background:"#dc2626",padding:"6px 12px",fontSize:11,flexShrink:0,opacity:saving?0.5:1 }}>
+                {saving?"…":"Reintentar"}
+              </button>
+              <button onClick={()=>setSaveError(null)} style={{ background:"none",border:"none",cursor:"pointer",color:"#fca5a5",padding:4,flexShrink:0 }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -832,7 +969,7 @@ function FormRegistro({ sede, latestMap, trendMap, user, conn, onSaved, isPrevie
 // ══════════════════════════════════════════════════════════════════════════════
 // CM VIEW
 // ══════════════════════════════════════════════════════════════════════════════
-function InventarioCM({ user, records, onSaved, conn, breakevenMap={}, globalExtraProds=[] }) {
+function InventarioCM({ user, records, onSaved, conn, breakevenMap={}, globalExtraProds=[], onAddProd }) {
   const sede = getCMSede(user.email);
   const [tab, setTab] = useState("registrar");
   const latestMap = useMemo(()=>buildLatestMap(records),[records]);
@@ -867,8 +1004,12 @@ function InventarioCM({ user, records, onSaved, conn, breakevenMap={}, globalExt
         </div>
       </div>
       <div style={{ flex:1,overflowY:"auto",overflowX:"auto",padding:"20px 24px" }}>
-        {tab==="registrar"&&<FormRegistro sede={sede} latestMap={latestMap} trendMap={trendMap} user={user} conn={conn} onSaved={onSaved} breakevenMap={breakevenMap} globalExtraProds={globalExtraProds}/>}
-        {tab==="historial"&&<HistorialSede sede={sede} records={records} latestMap={latestMap} onRecordUpdate={r=>{ const upd=records.map(x=>x.id===r.id?r:x); onSaved(upd); setCached(upd); }}/>}
+        {tab==="registrar"&&<FormRegistro sede={sede} records={records} user={user} conn={conn} onSaved={onSaved} breakevenMap={breakevenMap} globalExtraProds={globalExtraProds} onAddProd={onAddProd}
+          onDeleteRecord={id=>{ const upd=records.filter(x=>x.id!==id); onSaved(upd); setCached(upd); if(conn) deleteInventarioRecord(id).catch(console.error); }}/>}
+        {tab==="historial"&&<HistorialSede sede={sede} records={records} latestMap={latestMap}
+          canDelete={true}
+          onRecordUpdate={r=>{ const upd=records.map(x=>x.id===r.id?r:x); onSaved(upd); setCached(upd); }}
+          onRecordDelete={id=>{ const upd=records.filter(x=>x.id!==id); onSaved(upd); setCached(upd); if(conn) deleteInventarioRecord(id).catch(console.error); }}/>}
       </div>
     </div>
   );
@@ -942,11 +1083,35 @@ function HistorialRow({ r, sede, day, i, onUpdate, canDelete, onDelete }) {
 }
 
 function HistorialSede({ sede, records, latestMap, onRecordUpdate, canDelete, onRecordDelete }) {
+  const [deletingAll, setDeletingAll] = useState(false);
   const sedeR = records.filter(r=>r.sede===sede).sort((a,b)=>b.fecha.localeCompare(a.fecha));
-  const fechas = [...new Set(sedeR.map(r=>r.fecha))].slice(0,15);
+  const fechas = [...new Set(sedeR.map(r=>r.fecha))].slice(0,30);
+
+  const handleDeleteAll = async () => {
+    if (!window.confirm(`¿Borrar TODOS los ${sedeR.length} registros de ${sede}? Esta acción no se puede deshacer.`)) return;
+    setDeletingAll(true);
+    try {
+      await Promise.all(sedeR.map(r=>deleteInventarioRecord(r.id).catch(()=>{})));
+      sedeR.forEach(r=>onRecordDelete?.(r.id));
+    } catch(e) { console.error(e); }
+    finally { setDeletingAll(false); }
+  };
+
   if (!sedeR.length) return <div style={{ textAlign:"center",color:"#d4d4d4",fontSize:12,padding:40 }}>Sin registros aún</div>;
   return (
     <div>
+      {/* Header con conteo y borrar todo */}
+      {canDelete&&(
+        <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14,padding:"8px 12px",background:"#fafafa",borderRadius:8,border:"1px solid #f0f0f0" }}>
+          <span style={{ fontSize:11,color:"#737373" }}>{sedeR.length} registros en {sede}</span>
+          <button onClick={handleDeleteAll} disabled={deletingAll}
+            style={{ fontSize:10,color:"#ef4444",background:"none",border:"1px solid #fecaca",borderRadius:5,padding:"4px 10px",cursor:"pointer",fontFamily:"'Sora',sans-serif",opacity:deletingAll?0.5:1,display:"flex",alignItems:"center",gap:4 }}>
+            {deletingAll
+              ? "Borrando…"
+              : <><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>Borrar todo</>}
+          </button>
+        </div>
+      )}
       {fechas.map(fecha=>{
         const day=sedeR.filter(r=>r.fecha===fecha);
         const ago=daysAgo(fecha);
@@ -1296,5 +1461,5 @@ export default function Inventario({ user, conn }) {
 
   return isAdmin
     ? <InventarioAdmin records={records} user={user} conn={conn} onSaved={setRecords} catOverrides={catOverrides} breakevenMap={breakevenMap} onCatOverride={onCatOverride} onBreakevenChange={onBreakevenChange} extraProds={extraProds} onAddProd={onAddProd} onRemoveProd={onRemoveProd}/>
-    : <InventarioCM user={user} records={records} onSaved={setRecords} conn={conn} breakevenMap={breakevenMap} globalExtraProds={extraProds}/>;
+    : <InventarioCM user={user} records={records} onSaved={setRecords} conn={conn} breakevenMap={breakevenMap} globalExtraProds={extraProds} onAddProd={onAddProd}/>;
 }
