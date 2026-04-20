@@ -533,7 +533,7 @@ function InventarioAdmin({ records, user, conn, onSaved, catOverrides={}, breake
               </select>
             </div>
             <FormRegistro sede={previewSede} records={records} user={user} conn={conn} onSaved={onSaved} breakevenMap={breakevenMap} onBreakevenChange={onBreakevenChange} globalExtraProds={extraProds} deletedProds={deletedProds}
-              onDeleteRecord={id=>{ const upd=records.filter(x=>x.id!==id); onSaved(upd); setCached(upd); if(conn) deleteInventarioRecord(id).catch(console.error); }}/>
+              onDeleteRecord={async id=>{ const upd=records.filter(x=>x.id!==id); onSaved(upd); setCached(upd); if(conn){try{await deleteInventarioRecord(id);}catch(e){console.error(e);onSaved(records);setCached(records);alert("Error al eliminar el registro de Sheets. Intenta de nuevo.");}} }}/>
           </div>
         )}
         {tab==="historial"&&(
@@ -547,7 +547,7 @@ function InventarioAdmin({ records, user, conn, onSaved, catOverrides={}, breake
             <HistorialSede sede={previewSede} records={records} latestMap={latestMap}
               onRecordUpdate={r=>{ const upd=records.map(x=>x.id===r.id?r:x); onSaved(upd); setCached(upd); }}
               canDelete={true}
-              onRecordDelete={id=>{ const upd=records.filter(x=>x.id!==id); onSaved(upd); setCached(upd); if(conn) deleteInventarioRecord(id).catch(console.error); }}/>
+              onRecordDelete={id=>{ const upd=records.filter(x=>x.id!==id); onSaved(upd); setCached(upd); }}/>
           </div>
         )}
         {tab==="directorio"&&<DirectorioCM conn={conn} catOverrides={catOverrides} onCatOverride={onCatOverride} extraProds={extraProds} onAddProd={onAddProd} onRemoveProd={onRemoveProd} deletedProds={deletedProds} onDeleteCatalogProd={onDeleteCatalogProd}/>}
@@ -713,9 +713,13 @@ function FormRegistro({ sede, records=[], user, conn, onSaved, isPreview, breake
     });
     pendingRef.current = { newR, fecha };
     try {
-      if (conn&&!isPreview) await saveInventarioRegistro(newR);
       if (!isPreview) {
-        const updated=[...getCached(),...newR];
+        if (conn) {
+          await saveInventarioRegistro(newR);
+        } else {
+          setSaveError("Sin conexión a Sheets. Los datos se guardaron localmente pero no serán visibles para otros usuarios hasta que se restablezca la conexión.");
+        }
+        const updated=[...records,...newR];
         setCached(updated);
         onSaved?.(updated);
       }
@@ -737,9 +741,13 @@ function FormRegistro({ sede, records=[], user, conn, onSaved, isPreview, breake
     setSaving(true);
     setSaveError(null);
     try {
-      if (conn&&!isPreview) await saveInventarioRegistro(newR);
       if (!isPreview) {
-        const updated=[...getCached(),...newR];
+        if (conn) {
+          await saveInventarioRegistro(newR);
+        } else {
+          setSaveError("Sin conexión a Sheets. Los datos se guardaron localmente pero no serán visibles para otros usuarios hasta que se restablezca la conexión.");
+        }
+        const updated=[...records,...newR];
         setCached(updated);
         onSaved?.(updated);
       }
@@ -1038,11 +1046,11 @@ function InventarioCM({ user, records, onSaved, conn, breakevenMap={}, globalExt
       </div>
       <div style={{ flex:1,overflowY:"auto",overflowX:"auto",padding:"20px 24px" }}>
         {tab==="registrar"&&<FormRegistro sede={sede} records={records} user={user} conn={conn} onSaved={onSaved} breakevenMap={breakevenMap} globalExtraProds={globalExtraProds} onAddProd={onAddProd} deletedProds={deletedProds}
-          onDeleteRecord={id=>{ const upd=records.filter(x=>x.id!==id); onSaved(upd); setCached(upd); if(conn) deleteInventarioRecord(id).catch(console.error); }}/>}
+          onDeleteRecord={async id=>{ const upd=records.filter(x=>x.id!==id); onSaved(upd); setCached(upd); if(conn){try{await deleteInventarioRecord(id);}catch(e){console.error(e);onSaved(records);setCached(records);alert("Error al eliminar el registro de Sheets. Intenta de nuevo.");}} }}/>}
         {tab==="historial"&&<HistorialSede sede={sede} records={records} latestMap={latestMap}
           canDelete={true}
           onRecordUpdate={r=>{ const upd=records.map(x=>x.id===r.id?r:x); onSaved(upd); setCached(upd); }}
-          onRecordDelete={id=>{ const upd=records.filter(x=>x.id!==id); onSaved(upd); setCached(upd); if(conn) deleteInventarioRecord(id).catch(console.error); }}/>}
+          onRecordDelete={id=>{ const upd=records.filter(x=>x.id!==id); onSaved(upd); setCached(upd); }}/>}
       </div>
     </div>
   );
