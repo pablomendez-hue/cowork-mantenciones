@@ -139,11 +139,12 @@ function Dashboard({items,onBack,conn}){
 function Detail({item,onClose,onUpdate,onDelete,saving,user}){
   const cat=CATEGORIES[item.category];const pri=PRIORITY[item.priority];const ci=COL_IDS.indexOf(item.stage);
   const[cm,setCm]=useState("");const[pv,setPv]=useState(item.provider||"");const[am,setAm]=useState(item.amount||"");
-  const[py,setPy]=useState(item.payment||"");const[ed,setEd]=useState(item.execDate||"");const[cd,setCd]=useState(false);
+  const[py,setPy]=useState(item.payment||"");const[ed,setEd]=useState(item.execDate||"");const[cd,setCd]=useState(false);const[cfc,setCfc]=useState(false);
   const[editBy,setEditBy]=useState(item.by||"");const[editAmt,setEditAmt]=useState(item.amount||"");const[showEditAmt,setShowEditAmt]=useState(false);
   const[editProv,setEditProv]=useState(item.provider||"");const[showEditProv,setShowEditProv]=useState(false);
   const[assignee,setAssignee]=useState(item.assignee||"");const[saved,setSaved]=useState(false);
   const isAdm=user.role==="admin";const isEmilia=user.email.toLowerCase()==="emilia@co-work.cl";const canEdit=isAdm||user.role==="ops";const cPay=isAdm||isEmilia;const cFin=user.role==="ops"||isAdm||isEmilia;const cDel=isAdm;
+  const canForceClose=(isAdm||user.role==="ops")&&!(item.stage==="finalizado"&&item.payment==="100");
   const canPri=isAdm;
   const opsUsers=getAllUsers().filter(u=>u.role==="ops");
 
@@ -154,6 +155,7 @@ function Detail({item,onClose,onUpdate,onDelete,saving,user}){
   const hPy=()=>{if(py==="")return;doSave(item.id,{payment:py,stage:"en_proceso"},"stage")};
   const hEx=()=>{if(ed)doSave(item.id,{execDate:ed},"execDate")};
   const hFn=()=>doSave(item.id,{stage:"finalizado",closedAt:today()},"stage");
+  const hForceClose=()=>{doSave(item.id,{stage:"finalizado",payment:"100",closedAt:today()},"stage");setCfc(false);};
   const hAssign=()=>{if(assignee)doSave(item.id,{assignee},"assignee")};
 
   return(
@@ -168,10 +170,25 @@ function Detail({item,onClose,onUpdate,onDelete,saving,user}){
               <span style={{fontSize:10,fontWeight:600,textTransform:"uppercase",color:cat.color,background:cat.bg,border:"1px solid "+cat.border,padding:"2px 8px",borderRadius:4}}>{item.category}</span>
               {canPri?<select value={item.priority} onChange={e=>doSave(item.id,{priority:e.target.value})} style={{appearance:"none",WebkitAppearance:"none",fontSize:10,fontWeight:500,color:pri.color,background:"#fafafa",padding:"2px 20px 2px 8px",borderRadius:4,border:"1px solid #e5e5e5",cursor:"pointer",fontFamily:"'Sora',sans-serif",outline:"none",backgroundImage:"url(\"data:image/svg+xml,%3Csvg width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2' xmlns='http://www.w3.org/2000/svg'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E\")",backgroundRepeat:"no-repeat",backgroundPosition:"right 4px center"}}>{Object.keys(PRIORITY).map(p=><option key={p} value={p}>{p}</option>)}</select>:<span style={{fontSize:10,fontWeight:500,color:pri.color,background:"#fafafa",padding:"2px 8px",borderRadius:4,border:"1px solid #e5e5e5"}}>{item.priority}</span>}
             </div>
-            <div style={{display:"flex",gap:4}}>{cDel&&<button onClick={()=>setCd(true)} style={{background:"none",border:"none",cursor:"pointer",color:"#d4d4d4",padding:2}}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>}<button onClick={onClose} style={{background:"none",border:"none",cursor:"pointer",color:"#b3b3b3",padding:2}}><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
+            <div style={{display:"flex",gap:4,alignItems:"center"}}>
+              {canForceClose&&<button onClick={()=>{setCfc(true);setCd(false)}} title="Forzar cierre y marcar como pagado 100%" style={{background:"none",border:"1px solid #e5e5e5",borderRadius:5,cursor:"pointer",color:"#737373",padding:"3px 7px",display:"flex",alignItems:"center",gap:3,fontSize:10,fontWeight:500,fontFamily:"'Sora',sans-serif"}} onMouseEnter={e=>{e.currentTarget.style.borderColor="#16a34a";e.currentTarget.style.color="#16a34a"}} onMouseLeave={e=>{e.currentTarget.style.borderColor="#e5e5e5";e.currentTarget.style.color="#737373"}}>
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/><polyline points="20 6 20 6"/></svg>
+                Forzar cierre
+              </button>}
+              {cDel&&<button onClick={()=>{setCd(true);setCfc(false)}} style={{background:"none",border:"none",cursor:"pointer",color:"#d4d4d4",padding:2}}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>}
+              <button onClick={onClose} style={{background:"none",border:"none",cursor:"pointer",color:"#b3b3b3",padding:2}}><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+            </div>
           </div>
           <h2 style={{fontSize:15,fontWeight:600,margin:0,lineHeight:1.4}}>{item.desc}</h2>
           {cd&&<div style={{marginTop:12,background:"#fef2f2",border:"1px solid #fecaca",borderRadius:8,padding:"12px 14px"}}><div style={{fontSize:12,fontWeight:500,color:"#dc2626",marginBottom:8}}>Eliminar este requerimiento?</div><div style={{display:"flex",gap:6}}><button onClick={()=>{onDelete(item.id);onClose()}} style={{...BP,background:"#dc2626",padding:"6px 14px",fontSize:11}}>Eliminar</button><button onClick={()=>setCd(false)} style={{...BD,padding:"6px 14px",fontSize:11}}>Cancelar</button></div></div>}
+          {cfc&&<div style={{marginTop:12,background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:8,padding:"12px 14px"}}>
+            <div style={{fontSize:12,fontWeight:600,color:"#15803d",marginBottom:4}}>Forzar cierre completo</div>
+            <div style={{fontSize:11,color:"#525252",marginBottom:10,lineHeight:1.5}}>Esto moverá el ticket directamente a <strong>Finalizado — Pagado 100%</strong> sin pasar por el flujo normal. Úsalo solo si el proceso ya fue completado fuera del sistema.</div>
+            <div style={{display:"flex",gap:6}}>
+              <button onClick={hForceClose} style={{...BP,background:"#16a34a",padding:"6px 14px",fontSize:11,border:"none"}}>{saving?"Guardando...":"Confirmar cierre"}</button>
+              <button onClick={()=>setCfc(false)} style={{...BD,padding:"6px 14px",fontSize:11}}>Cancelar</button>
+            </div>
+          </div>}
         </div>
         <div style={{padding:"16px 24px",borderBottom:"1px solid #f0f0f0",flexShrink:0}}><div style={{display:"flex"}}>{COLUMNS.map((c,i)=>{const a=i<=ci;const cur=i===ci;return<div key={c.id} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",position:"relative"}}>{i>0&&<div style={{position:"absolute",left:"-50%",right:"50%",top:9,height:2,background:a?"#1a1a1a":"#e5e5e5",zIndex:0}}/>}<div style={{width:18,height:18,borderRadius:99,background:a?"#1a1a1a":"#e5e5e5",display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,color:"#fff",fontWeight:700,zIndex:1}}>{a&&i<ci?<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>:<span style={{color:a?"#fff":"#a3a3a3"}}>{i+1}</span>}</div><span style={{fontSize:9,fontWeight:cur?600:400,color:cur?"#1a1a1a":a?"#737373":"#d4d4d4",marginTop:4}}>{c.label}</span></div>})}</div></div>
         <div style={{padding:"16px 24px",borderBottom:"1px solid #f0f0f0",flexShrink:0,display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
