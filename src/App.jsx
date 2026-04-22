@@ -42,7 +42,7 @@ const FL={fontSize:10,fontWeight:500,color:"#a3a3a3",display:"block",marginBotto
 const SL={fontSize:9,fontWeight:600,color:"#b3b3b3",textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:10};
 const ML={fontSize:9,color:"#b3b3b3",marginBottom:1};
 const FB={padding:"5px 10px",borderRadius:5,fontSize:10,fontWeight:500,cursor:"pointer",fontFamily:"'Sora',sans-serif",transition:"all 0.12s"};
-const CSS=`@keyframes fadeIn{from{opacity:0}to{opacity:1}}@keyframes slideUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}@keyframes slideIn{from{transform:translateX(24px);opacity:0}to{transform:translateX(0);opacity:1}}@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}*{box-sizing:border-box;margin:0;padding:0}::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:#e5e5e5;border-radius:2px}body{margin:0}`;
+const CSS=`@keyframes fadeIn{from{opacity:0}to{opacity:1}}@keyframes slideUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}@keyframes slideIn{from{transform:translateX(24px);opacity:0}to{transform:translateX(0);opacity:1}}@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}*{box-sizing:border-box;margin:0;padding:0}::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:#e5e5e5;border-radius:2px}body{margin:0}`;
 
 function LoginScreen({onLogin}){
   const[email,setEmail]=useState("");const[err,setErr]=useState("");
