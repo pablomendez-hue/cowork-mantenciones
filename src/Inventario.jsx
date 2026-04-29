@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { INVENTARIO_CATALOG, INVENTARIO_SEDES } from "./inventario_catalog.js";
 import { INVENTARIO_EXCEL_LATEST, INVENTARIO_EXCEL_TREND } from "./inventario_history.js";
 import { fetchInventario, saveInventarioRegistro, updateInventarioRecord, deleteInventarioRecord } from "./inventario_sheets.js";
-import { upsertConfig, fetchConfig, parseProdCat, parseBreakeven, parseProdGlobal } from "./config_sheets.js";
+import { upsertConfig, fetchConfig, parseProdCat, parseBreakeven, parseProdGlobal, parseSedeCM } from "./config_sheets.js";
 import { USERS, today } from "./constants.js";
 
 // ── Shared styles ────────────────────────────────────────────────────────────
@@ -1054,21 +1054,12 @@ function FormRegistro({ sede, records=[], user, conn, onSaved, isPreview, breake
 // ══════════════════════════════════════════════════════════════════════════════
 // CM VIEW
 // ══════════════════════════════════════════════════════════════════════════════
-function InventarioCM({ user, records, onSaved, conn, breakevenMap={}, globalExtraProds=[], onAddProd, deletedProds=new Set(), onSync, syncing, syncMsg }) {
-  const sede = getCMSede(user.email);
+function InventarioCM({ user, records, onSaved, conn, breakevenMap={}, globalExtraProds=[], onAddProd, deletedProds=new Set(), onSync, syncing, syncMsg, cmSede }) {
+  // cmSede prop (from Sheets config) takes priority over localStorage fallback
+  const sede = cmSede || getCMSede(user.email);
   const [tab, setTab] = useState("registrar");
   const latestMap = useMemo(()=>buildLatestMap(records),[records]);
   const trendMap  = useMemo(()=>buildTrendMap(records),[records]);
-
-  if (!sede) {
-    return (
-      <div style={{ flex:1,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:12,color:"#a3a3a3" }}>
-        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#d4d4d4" strokeWidth="1.5"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-        <div style={{ fontSize:13,fontWeight:500 }}>Sin sede asignada</div>
-        <div style={{ fontSize:11,color:"#b3b3b3",textAlign:"center",maxWidth:260 }}>Contacta a un administrador para que te asignen una sede.</div>
-      </div>
-    );
-  }
 
   const navBtn=(id,label)=>(
     <button onClick={()=>setTab(id)} style={{
@@ -1077,6 +1068,13 @@ function InventarioCM({ user, records, onSaved, conn, breakevenMap={}, globalExt
       background:tab===id?"#1a1a1a":"#fff",color:tab===id?"#fff":"#737373",
       fontFamily:"'Sora',sans-serif"
     }}>{label}</button>
+  );
+
+  const syncBtn = (
+    <button onClick={onSync} disabled={!conn||syncing} title="Sube registros locales pendientes a Sheets y recarga datos frescos" style={{ marginLeft:"auto",padding:"4px 10px",fontSize:10,fontWeight:500,cursor:(!conn||syncing)?"not-allowed":"pointer",borderRadius:5,border:"1px solid #e5e5e5",background:"#fff",color:syncing?"#a3a3a3":"#525252",fontFamily:"'Sora',sans-serif",display:"flex",alignItems:"center",gap:4,opacity:(!conn||syncing)?0.5:1 }}>
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ animation:syncing?"spin 1s linear infinite":undefined }}><polyline points="1 4 1 10 7 10"/><polyline points="23 20 23 14 17 14"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/></svg>
+      {syncing ? "Sincronizando…" : "Sincronizar"}
+    </button>
   );
 
   return (
@@ -1088,25 +1086,40 @@ function InventarioCM({ user, records, onSaved, conn, breakevenMap={}, globalExt
           : <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>}
         {syncMsg}
       </div>}
+
+      {/* Header — sync button always visible regardless of sede */}
       <div style={{ padding:"12px 20px",borderBottom:"1px solid #f0f0f0",display:"flex",alignItems:"center",gap:16,flexShrink:0 }}>
-        <div style={{ fontSize:14,fontWeight:700 }}>{sede}</div>
-        <div style={{ display:"flex",gap:4 }}>
-          {navBtn("registrar","Registrar")}
-          {navBtn("historial","Historial")}
+        <div style={{ fontSize:14,fontWeight:700 }}>{sede || <span style={{ color:"#b3b3b3",fontWeight:400,fontSize:12 }}>Sin sede asignada</span>}</div>
+        {sede && (
+          <div style={{ display:"flex",gap:4 }}>
+            {navBtn("registrar","Registrar")}
+            {navBtn("historial","Historial")}
+          </div>
+        )}
+        {syncBtn}
+      </div>
+
+      {/* Content */}
+      {!sede ? (
+        <div style={{ flex:1,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:12,color:"#a3a3a3" }}>
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#d4d4d4" strokeWidth="1.5"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+          <div style={{ fontSize:13,fontWeight:500 }}>Sin sede asignada</div>
+          <div style={{ fontSize:11,color:"#b3b3b3",textAlign:"center",maxWidth:280 }}>
+            {conn
+              ? "Haz clic en Sincronizar para cargar tu asignación desde el servidor."
+              : "Contacta a un administrador para que te asignen una sede."}
+          </div>
         </div>
-        <button onClick={onSync} disabled={!conn||syncing} title="Sube registros locales pendientes a Sheets y recarga datos frescos" style={{ marginLeft:"auto",padding:"4px 10px",fontSize:10,fontWeight:500,cursor:(!conn||syncing)?"not-allowed":"pointer",borderRadius:5,border:"1px solid #e5e5e5",background:"#fff",color:syncing?"#a3a3a3":"#525252",fontFamily:"'Sora',sans-serif",display:"flex",alignItems:"center",gap:4,opacity:(!conn||syncing)?0.5:1 }}>
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="1 4 1 10 7 10"/><polyline points="23 20 23 14 17 14"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/></svg>
-          {syncing ? "Sincronizando…" : "Sincronizar"}
-        </button>
-      </div>
-      <div style={{ flex:1,overflowY:"auto",overflowX:"auto",padding:"20px 24px" }}>
-        {tab==="registrar"&&<FormRegistro sede={sede} records={records} user={user} conn={conn} onSaved={onSaved} breakevenMap={breakevenMap} globalExtraProds={globalExtraProds} onAddProd={onAddProd} deletedProds={deletedProds}
-          onDeleteRecord={async id=>{ const upd=records.filter(x=>x.id!==id); onSaved(upd); setCached(upd); if(conn){try{await deleteInventarioRecord(id);}catch(e){console.error(e);onSaved(records);setCached(records);alert("Error al eliminar el registro de Sheets. Intenta de nuevo.");}} }}/>}
-        {tab==="historial"&&<HistorialSede sede={sede} records={records} latestMap={latestMap}
-          canDelete={true}
-          onRecordUpdate={r=>{ const upd=records.map(x=>x.id===r.id?r:x); onSaved(upd); setCached(upd); }}
-          onRecordDelete={id=>{ const upd=records.filter(x=>x.id!==id); onSaved(upd); setCached(upd); }}/>}
-      </div>
+      ) : (
+        <div style={{ flex:1,overflowY:"auto",overflowX:"auto",padding:"20px 24px" }}>
+          {tab==="registrar"&&<FormRegistro sede={sede} records={records} user={user} conn={conn} onSaved={onSaved} breakevenMap={breakevenMap} globalExtraProds={globalExtraProds} onAddProd={onAddProd} deletedProds={deletedProds}
+            onDeleteRecord={async id=>{ const upd=records.filter(x=>x.id!==id); onSaved(upd); setCached(upd); if(conn){try{await deleteInventarioRecord(id);}catch(e){console.error(e);onSaved(records);setCached(records);alert("Error al eliminar el registro de Sheets. Intenta de nuevo.");}} }}/>}
+          {tab==="historial"&&<HistorialSede sede={sede} records={records} latestMap={latestMap}
+            canDelete={true}
+            onRecordUpdate={r=>{ const upd=records.map(x=>x.id===r.id?r:x); onSaved(upd); setCached(upd); }}
+            onRecordDelete={id=>{ const upd=records.filter(x=>x.id!==id); onSaved(upd); setCached(upd); }}/>}
+        </div>
+      )}
     </div>
   );
 }
@@ -1511,6 +1524,18 @@ export default function Inventario({ user, conn }) {
   const [breakevenMap, setBreakevenMap] = useState({});
   const [extraProds, setExtraProds] = useState([]);
   const [deletedProds, setDeletedProds] = useState(new Set());
+  // sedeCM: maps email → sede for CM users — read from localStorage initially, updated on load/sync
+  const [sedeCM, setSedeCM] = useState(()=>{ try { return JSON.parse(localStorage.getItem("cw_sede_cm")||"{}"); } catch { return {}; } });
+
+  const applyConfig = (configRows) => {
+    setCatOverrides(parseProdCat(configRows));
+    setBreakevenMap(parseBreakeven(configRows));
+    setExtraProds(parseProdGlobal(configRows));
+    setDeletedProds(parseDeletedProds(configRows));
+    const scm = parseSedeCM(configRows);
+    setSedeCM(scm);
+    localStorage.setItem("cw_sede_cm", JSON.stringify(scm));
+  };
 
   useEffect(()=>{
     if (!conn) return;
@@ -1523,10 +1548,7 @@ export default function Inventario({ user, conn }) {
         const pending = localCache.filter(r=>r.id && !sheetIds.has(r.id));
         const merged = pending.length > 0 ? [...data, ...pending] : data;
         setRecords(merged); setCached(merged);
-        setCatOverrides(parseProdCat(configRows));
-        setBreakevenMap(parseBreakeven(configRows));
-        setExtraProds(parseProdGlobal(configRows));
-        setDeletedProds(parseDeletedProds(configRows));
+        applyConfig(configRows);
       })
       .catch(e=>console.error(e))
       .finally(()=>setLoading(false));
@@ -1537,17 +1559,18 @@ export default function Inventario({ user, conn }) {
     setSyncing(true);
     setSyncMsg(null);
     try {
-      // 1. Fetch what Sheets actually has
-      const fresh = await fetchInventario();
+      // Fetch inventory + config in parallel (config updates sede assignments for CMs)
+      const [fresh, configRows] = await Promise.all([fetchInventario(), fetchConfig().catch(()=>[])]);
+      if (configRows.length) applyConfig(configRows);
       const freshIds = new Set(fresh.map(r => r.id));
-      // 2. Find records in local cache not yet in Sheets
+      // Find records in local cache not yet in Sheets
       const cached = getCached();
       const missing = cached.filter(r => r.id && !freshIds.has(r.id));
-      // 3. Push missing records to Sheets
+      // Push missing records to Sheets
       if (missing.length > 0) {
         await saveInventarioRegistro(missing);
       }
-      // 4. Refetch fresh data from Sheets and update state
+      // Refetch fresh data from Sheets and update state
       const updated = await fetchInventario();
       setRecords(updated);
       setCached(updated);
@@ -1603,7 +1626,9 @@ export default function Inventario({ user, conn }) {
     </div>
   );
 
+  const cmSede = !isAdmin ? (sedeCM[user.email.toLowerCase()]||null) : null;
+
   return isAdmin
     ? <InventarioAdmin records={records} user={user} conn={conn} onSaved={setRecords} catOverrides={catOverrides} breakevenMap={breakevenMap} onCatOverride={onCatOverride} onBreakevenChange={onBreakevenChange} extraProds={extraProds} onAddProd={onAddProd} onRemoveProd={onRemoveProd} deletedProds={deletedProds} onDeleteCatalogProd={onDeleteCatalogProd} onSync={handleSync} syncing={syncing} syncMsg={syncMsg}/>
-    : <InventarioCM user={user} records={records} onSaved={setRecords} conn={conn} breakevenMap={breakevenMap} globalExtraProds={extraProds} onAddProd={onAddProd} deletedProds={deletedProds} onSync={handleSync} syncing={syncing} syncMsg={syncMsg}/>;
+    : <InventarioCM user={user} records={records} onSaved={setRecords} conn={conn} breakevenMap={breakevenMap} globalExtraProds={extraProds} onAddProd={onAddProd} deletedProds={deletedProds} onSync={handleSync} syncing={syncing} syncMsg={syncMsg} cmSede={cmSede}/>;
 }
