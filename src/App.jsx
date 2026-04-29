@@ -236,7 +236,7 @@ export default function App(){
   const savRef=useRef(false);const pendingRef=useRef(null);
 
   useEffect(()=>{if(!user)return;async function ld(){if(isConfigured()){try{const ok=await testConnection();if(ok){setConn(true);const[d,cfg]=await Promise.all([fetchAllTickets(),fetchConfig().catch(()=>[])]);setItems(d);d.forEach(t=>{if(t.provider)saveProv(t.provider)});if(cfg.length){const sedeCM=parseSedeCM(cfg);const extras=parseExtraUsers(cfg);const roleOvr=parseRoleOverrides(cfg);localStorage.setItem("cw_sede_cm",JSON.stringify(sedeCM));setRoleOverrides(roleOvr);const be=new Set(USERS.map(u=>u.email.toLowerCase()));setSavedUsers(extras.filter(u=>!be.has(u.email.toLowerCase())))}}else setItems(DEMO)}catch(e){console.error(e);setItems(DEMO)}}else setItems(DEMO);setLoading(false)}ld()},[user]);
-  useEffect(()=>{if(!conn)return;const iv=setInterval(async()=>{if(savRef.current)return;try{const d=await fetchAllTickets();setItems(d)}catch(e){console.error(e)}},30000);return()=>clearInterval(iv)},[conn]);
+  useEffect(()=>{if(!conn)return;const iv=setInterval(async()=>{if(savRef.current)return;try{const d=await fetchAllTickets();if(!savRef.current)setItems(d)}catch(e){console.error(e)}},30000);return()=>clearInterval(iv)},[conn]);
 
   const persist=async u=>{if(!conn)return;savRef.current=true;setSaving(true);try{await updateTicket(u)}catch(e){console.error(e);setErr("Error al guardar");setTimeout(()=>setErr(null),3000)}finally{setSaving(false);savRef.current=false}};
 

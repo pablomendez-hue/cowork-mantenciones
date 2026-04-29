@@ -23,8 +23,8 @@ function recordToRow(r) {
 }
 
 export async function fetchInventario() {
-  const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${RANGE}?key=${API_KEY}`;
-  const res = await fetch(url);
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${RANGE}?key=${API_KEY}&t=${Date.now()}`;
+  const res = await fetch(url, { cache: "no-store" });
   if (!res.ok) throw new Error("Sheets API error: " + res.status);
   const data = await res.json();
   const rows = data.values || [];

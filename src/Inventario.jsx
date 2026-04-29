@@ -141,6 +141,15 @@ function getTrendByProd(sede,producto,trendMap){
   }
   return Object.entries(dm).sort((a,b)=>a[0].localeCompare(b[0])).slice(-12);
 }
+// Like getTrendByProd but last-write-wins per date (no sum) — for FormRegistro display
+function getTrendByProdDedup(sede,producto,trendMap){
+  const dm={};
+  for(const[k,entries]of Object.entries(trendMap)){
+    const parts=k.split("||");
+    if(parts[0]===sede&&parts[2]===producto){for(const[f,q]of entries)dm[f]=q;}
+  }
+  return Object.entries(dm).sort((a,b)=>a[0].localeCompare(b[0])).slice(-12);
+}
 
 // ── All unique products grouped by categoria + subcategoria ───────────────────
 function getAllProductsGrouped(catOverrides={}) {
@@ -544,7 +553,7 @@ function InventarioAdmin({ records, user, conn, onSaved, catOverrides={}, breake
                 {INVENTARIO_SEDES.map(s=><option key={s} value={s}>{s}</option>)}
               </select>
             </div>
-            <FormRegistro sede={previewSede} records={records} user={user} conn={conn} onSaved={onSaved} breakevenMap={breakevenMap} onBreakevenChange={onBreakevenChange} globalExtraProds={extraProds} deletedProds={deletedProds}
+            <FormRegistro sede={previewSede} records={records} user={user} conn={conn} onSaved={onSaved} breakevenMap={breakevenMap} onBreakevenChange={onBreakevenChange} globalExtraProds={extraProds} deletedProds={deletedProds} onCatOverride={onCatOverride}
               onDeleteRecord={async id=>{ const upd=records.filter(x=>x.id!==id); onSaved(upd); setCached(upd); if(conn){try{await deleteInventarioRecord(id);}catch(e){console.error(e);onSaved(records);setCached(records);alert("Error al eliminar el registro de Sheets. Intenta de nuevo.");}} }}/>
           </div>
         )}
@@ -620,7 +629,7 @@ function ColPE({ sede, producto, be, histSorted, hasHist, breakevenMap, onBreake
 // ══════════════════════════════════════════════════════════════════════════════
 // FORMULARIO DE REGISTRO
 // ══════════════════════════════════════════════════════════════════════════════
-function FormRegistro({ sede, records=[], user, conn, onSaved, isPreview, breakevenMap={}, onBreakevenChange, globalExtraProds=[], onAddProd, onDeleteRecord, deletedProds=new Set() }) {
+function FormRegistro({ sede, records=[], user, conn, onSaved, isPreview, breakevenMap={}, onBreakevenChange, globalExtraProds=[], onAddProd, onDeleteRecord, deletedProds=new Set(), onCatOverride }) {
   const [tipo, setTipo] = useState("stock");
   const [fecha, setFecha] = useState(today());
   const [cantidades, setCantidades] = useState({});
@@ -634,6 +643,8 @@ function FormRegistro({ sede, records=[], user, conn, onSaved, isPreview, breake
   const [extraProds, setExtraProds] = useState(()=>getExtraProds(sede));
   const [hovEntry, setHovEntry] = useState(null);
   const [hovRow, setHovRow] = useState(null);
+  const [draggedProd, setDraggedProd] = useState(null);
+  const [dragOverCat, setDragOverCat] = useState(null);
   // Entradas ocultadas localmente (datos Excel que no se pueden borrar de Sheets)
   const [hiddenEntries, setHiddenEntries] = useState(()=>{
     try { return new Set(JSON.parse(localStorage.getItem(`cw_hidden_${sede}`)||"[]")); } catch { return new Set(); }
@@ -642,6 +653,13 @@ function FormRegistro({ sede, records=[], user, conn, onSaved, isPreview, breake
   const [hiddenProds, setHiddenProds] = useState(()=>{
     try { return new Set(JSON.parse(localStorage.getItem(`cw_hidden_prods_${sede}`)||"[]")); } catch { return new Set(); }
   });
+
+  // Reset local state when sede changes
+  useEffect(() => {
+    try { setHiddenProds(new Set(JSON.parse(localStorage.getItem(`cw_hidden_prods_${sede}`)||"[]"))); } catch { setHiddenProds(new Set()); }
+    try { setHiddenEntries(new Set(JSON.parse(localStorage.getItem(`cw_hidden_${sede}`)||"[]"))); } catch { setHiddenEntries(new Set()); }
+    setExtraProds(getExtraProds(sede));
+  }, [sede]);
 
   const hideProd = (producto) => {
     const next = new Set([...hiddenProds, producto]);
@@ -653,8 +671,9 @@ function FormRegistro({ sede, records=[], user, conn, onSaved, isPreview, breake
   const trendMap  = useMemo(()=>buildTrendMap(records),[records]);
   const isAdmin = user?.role==="admin"||user?.role==="ops";
 
-  const hideEntry = (mkey, f, liveRec) => {
-    const key = `${mkey}||${f}`;
+  // Hidden-entry key uses sede||produto (no proveedor) to be provider-agnostic
+  const hideEntry = (skey, f, liveRec) => {
+    const key = `${skey}||${f}`;
     const next = new Set([...hiddenEntries, key]);
     setHiddenEntries(next);
     localStorage.setItem(`cw_hidden_${sede}`, JSON.stringify([...next]));
@@ -665,9 +684,9 @@ function FormRegistro({ sede, records=[], user, conn, onSaved, isPreview, breake
   // Catalog products: filter globally deleted + locally hidden
   const catalogProds = (INVENTARIO_CATALOG[sede]||[]).filter(p=>!deletedProds.has(p.producto)&&!hiddenProds.has(p.producto));
   const allSedeProds = [...catalogProds];
-  // Extra products: only filter globally deleted (not locally hidden — re-adding via form overrides local hide)
+  // Extra products: filter globally deleted AND locally hidden
   for (const ep of [...extraProds, ...globalExtraProds]) {
-    if (!allSedeProds.some(p=>p.producto===ep.producto) && !deletedProds.has(ep.producto)) allSedeProds.push(ep);
+    if (!allSedeProds.some(p=>p.producto===ep.producto) && !deletedProds.has(ep.producto) && !hiddenProds.has(ep.producto)) allSedeProds.push(ep);
   }
 
   // Products from other sedes not yet in this sede (for the "add" dropdown)
@@ -792,11 +811,16 @@ function FormRegistro({ sede, records=[], user, conn, onSaved, isPreview, breake
           const sk = s===null?"_general":s;
           return catProds.some(p=>(p.subcategoria||"_general")===sk||(!p.subcategoria&&s===null));
         });
+        const isDropTarget = draggedProd && dragOverCat === cat;
         return (
-          <div key={cat} style={{ marginBottom:20 }}>
-            <div style={{ display:"flex",alignItems:"center",gap:6,marginBottom:8 }}>
+          <div key={cat} style={{ marginBottom:20 }}
+            onDragOver={e=>{ if(draggedProd){ e.preventDefault(); setDragOverCat(cat); } }}
+            onDragLeave={e=>{ if(!e.currentTarget.contains(e.relatedTarget)) setDragOverCat(null); }}
+            onDrop={e=>{ e.preventDefault(); if(draggedProd && onCatOverride){ onCatOverride(draggedProd, cat); } setDraggedProd(null); setDragOverCat(null); }}>
+            <div style={{ display:"flex",alignItems:"center",gap:6,marginBottom:8,padding:"4px 6px",borderRadius:6,transition:"background 0.15s",background:isDropTarget?CAT_COLORS[cat]+"22":"transparent",border:isDropTarget?`2px dashed ${CAT_COLORS[cat]}`:"2px solid transparent" }}>
               <span style={{ width:7,height:7,borderRadius:99,background:CAT_COLORS[cat],display:"inline-block" }}/>
               <span style={{ fontSize:9,fontWeight:700,color:CAT_COLORS[cat],textTransform:"uppercase",letterSpacing:"0.06em" }}>{cat}</span>
+              {isDropTarget&&<span style={{ fontSize:9,color:CAT_COLORS[cat],fontStyle:"italic" }}>Soltar aquí</span>}
             </div>
             {/* Empty sede: show add button directly at category level */}
             {!isPreview&&catProds.length===0&&(()=>{
@@ -843,27 +867,33 @@ function FormRegistro({ sede, records=[], user, conn, onSaved, isPreview, breake
                     </div>
                     {subProds.map((p,idx)=>{
                       const fkey=`${p.proveedor}|||${p.producto}`;
-                      const mkey=`${sede}||${p.proveedor}||${p.producto}`;
-                      const last=latestMap?.[mkey];
-                      const hist=trendMap?.[mkey];
-                      const histSorted=(hist?[...hist].sort((a,b)=>a[0].localeCompare(b[0])):[])
-                        .filter(([f])=>!hiddenEntries.has(`${mkey}||${f}`));
+                      const skey=`${sede}||${p.producto}`; // product-level key (no proveedor) for trend/hidden
+                      // Use product-level lookups so proveedor mismatches don't hide data
+                      const last=getLatestByProd(sede,p.producto,latestMap);
+                      const histRaw=getTrendByProdDedup(sede,p.producto,trendMap);
+                      const histSorted=histRaw.filter(([f])=>!hiddenEntries.has(`${skey}||${f}`));
                       const be=histSorted.length?median(histSorted.map(([,v])=>v)):0;
                       const level=getLevel(last?.cantidad??null,p.min_stock);
                       const cs=CELL_STYLE[level];
                       const val=cantidades[fkey]??"";
                       const hasHist=histSorted.length>=2;
                       const dotColor=level==="nd"?"#d4d4d4":level==="ok"?"#22c55e":level==="amarillo"?"#f59e0b":"#ef4444";
+                      const isDragging=draggedProd===p.producto;
                       return (
                         <div key={fkey}
-                          onMouseEnter={()=>{ if(isAdmin) setHovRow(fkey); }}
+                          draggable={!!(isAdmin&&onCatOverride)}
+                          onDragStart={()=>{ setDraggedProd(p.producto); setHovRow(null); }}
+                          onDragEnd={()=>{ setDraggedProd(null); setDragOverCat(null); }}
+                          onMouseEnter={()=>{ if(isAdmin&&!draggedProd) setHovRow(fkey); }}
                           onMouseLeave={()=>setHovRow(null)}
                           style={{ display:"flex",alignItems:"stretch",
                           borderBottom:idx<subProds.length-1?"1px dashed #e8e8e8":"none",
-                          background:val!==""?"#f7fffe":"transparent",minHeight:42 }}>
+                          background:isDragging?"#f0f0ff":val!==""?"#f7fffe":"transparent",
+                          opacity:isDragging?0.5:1,minHeight:42,cursor:isAdmin&&onCatOverride?"grab":"default" }}>
                           {/* Col 1: product name */}
                           <div style={{ width:170,flexShrink:0,padding:"6px 10px",display:"flex",alignItems:"center",gap:6,borderRight:"1px dashed #e0e0e0",
                             background:level==="rojo"?"#fef2f2":level==="amarillo"?"#fffbeb":"transparent" }}>
+                            {isAdmin&&onCatOverride&&<span title="Arrastra para mover de sección" style={{ color:"#d4d4d4",flexShrink:0,cursor:"grab",fontSize:10 }}>⠿</span>}
                             <span style={{ width:5,height:5,borderRadius:99,background:dotColor,flexShrink:0 }}/>
                             <div style={{ minWidth:0,flex:1 }}>
                               <div style={{ fontSize:11,fontWeight:600,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis" }}>{p.producto}</div>
@@ -881,14 +911,15 @@ function FormRegistro({ sede, records=[], user, conn, onSaved, isPreview, breake
                               </button>
                             )}
                           </div>
-                          {/* Col 2: 12 history entries */}
+                          {/* Col 2: 12 history entries (oldest → newest; last = most recent) */}
                           <div style={{ flex:1,minWidth:0,overflowX:"auto",display:"flex",alignItems:"center",borderRight:"1px dashed #e0e0e0" }}>
                             {histSorted.length===0
                               ?<span style={{ fontSize:9,color:"#d4d4d4",padding:"0 14px",fontStyle:"italic" }}>sin registros</span>
                               :histSorted.map(([f,q],i)=>{
-                                const entryKey=`${fkey}||${f}`;
+                                const isLatest=i===histSorted.length-1;
+                                const entryKey=`${skey}||${f}`;
                                 const isHov=isAdmin&&hovEntry===entryKey;
-                                const liveRec=isAdmin?records.find(r=>r.sede===sede&&r.proveedor===p.proveedor&&r.producto===p.producto&&r.fecha===f):null;
+                                const liveRec=isAdmin?records.find(r=>r.sede===sede&&r.producto===p.producto&&r.fecha===f):null;
                                 return (
                                   <div key={i}
                                     onMouseEnter={()=>{ if(isAdmin) setHovEntry(entryKey); }}
@@ -896,14 +927,15 @@ function FormRegistro({ sede, records=[], user, conn, onSaved, isPreview, breake
                                     style={{ flexShrink:0,textAlign:"center",position:"relative",
                                       borderRight:i<histSorted.length-1?"1px dashed #f0f0f0":"none",
                                       padding:"4px 6px",minWidth:44,
-                                      background:isHov?"#fff5f5":"transparent" }}>
-                                    <div style={{ fontSize:8,color:"#a3a3a3",marginBottom:2,whiteSpace:"nowrap" }}>{fdate(f)}</div>
+                                      background:isHov?"#fff5f5":isLatest?"#f0fdf4":"transparent",
+                                      borderBottom:isLatest?"2px solid #22c55e":"none" }}>
+                                    <div style={{ fontSize:8,color:isLatest?"#16a34a":"#a3a3a3",marginBottom:2,whiteSpace:"nowrap",fontWeight:isLatest?600:400 }}>{fdate(f)}</div>
                                     <div style={{ fontSize:12,fontWeight:700,
                                       color:q>=be&&be>0?"#16a34a":q>0?"#b45309":"#dc2626",
                                       fontFamily:"'Consolas','Courier New',monospace" }}>{q}</div>
                                     {isHov&&(
                                       <button
-                                        onClick={e=>{ e.stopPropagation(); if(window.confirm(`¿Borrar entrada del ${fdate(f)} (${q})?`)) { hideEntry(mkey,f,liveRec); setHovEntry(null); } }}
+                                        onClick={e=>{ e.stopPropagation(); if(window.confirm(`¿Borrar entrada del ${fdate(f)} (${q})?`)) { hideEntry(skey,f,liveRec); setHovEntry(null); } }}
                                         title={liveRec?"Borrar de Sheets":"Ocultar entrada histórica"}
                                         style={{ position:"absolute",top:1,right:1,background:"#ef4444",border:"none",borderRadius:3,color:"#fff",cursor:"pointer",fontSize:8,lineHeight:1,padding:"1px 3px",zIndex:1 }}>×</button>
                                     )}
@@ -1148,7 +1180,10 @@ function HistorialRow({ r, sede, day, i, onUpdate, canDelete, onDelete }) {
 
 function HistorialSede({ sede, records, latestMap, onRecordUpdate, canDelete, onRecordDelete }) {
   const [deletingAll, setDeletingAll] = useState(false);
-  const sedeR = records.filter(r=>r.sede===sede).sort((a,b)=>b.fecha.localeCompare(a.fecha));
+  const sedeR = records
+    .filter(r=>r.sede===sede)
+    .map(r=>({...r, fecha: normalizeDate(r.fecha)||r.fecha}))
+    .sort((a,b)=>b.fecha.localeCompare(a.fecha));
   const fechas = [...new Set(sedeR.map(r=>r.fecha))].slice(0,30);
 
   const handleDeleteAll = async () => {
@@ -1482,7 +1517,12 @@ export default function Inventario({ user, conn }) {
     setLoading(true);
     Promise.all([fetchInventario(), fetchConfig()])
       .then(([data, configRows])=>{
-        setRecords(data); setCached(data);
+        // Preserve locally-saved records that haven't made it to Sheets yet
+        const localCache = getCached();
+        const sheetIds = new Set(data.map(r=>r.id));
+        const pending = localCache.filter(r=>r.id && !sheetIds.has(r.id));
+        const merged = pending.length > 0 ? [...data, ...pending] : data;
+        setRecords(merged); setCached(merged);
         setCatOverrides(parseProdCat(configRows));
         setBreakevenMap(parseBreakeven(configRows));
         setExtraProds(parseProdGlobal(configRows));
