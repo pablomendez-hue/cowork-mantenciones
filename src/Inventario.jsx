@@ -151,6 +151,20 @@ function getTrendByProdDedup(sede,producto,trendMap){
   return Object.entries(dm).sort((a,b)=>a[0].localeCompare(b[0])).slice(-12);
 }
 
+// Proveedor-aware lookups — used for subcategory products (Corporate Coffee, Café Caribe)
+// so each proveedor's inventory is tracked independently
+function getLatestByProvProd(sede,proveedor,producto,latestMap){
+  const key=`${sede}||${proveedor}||${producto}`;
+  return latestMap[key]||null;
+}
+function getTrendByProvProdDedup(sede,proveedor,producto,trendMap){
+  const key=`${sede}||${proveedor}||${producto}`;
+  const entries=trendMap[key]||[];
+  const dm={};
+  for(const[f,q]of entries)dm[f]=q;
+  return Object.entries(dm).sort((a,b)=>a[0].localeCompare(b[0])).slice(-12);
+}
+
 // ── All unique products grouped by categoria + subcategoria ───────────────────
 function getAllProductsGrouped(catOverrides={}) {
   const seen = new Set();
@@ -867,10 +881,9 @@ function FormRegistro({ sede, records=[], user, conn, onSaved, isPreview, breake
                     </div>
                     {subProds.map((p,idx)=>{
                       const fkey=`${p.proveedor}|||${p.producto}`;
-                      const skey=`${sede}||${p.producto}`; // product-level key (no proveedor) for trend/hidden
-                      // Use product-level lookups so proveedor mismatches don't hide data
-                      const last=getLatestByProd(sede,p.producto,latestMap);
-                      const histRaw=getTrendByProdDedup(sede,p.producto,trendMap);
+                      const skey=`${sede}||${p.proveedor}||${p.producto}`;
+                      const last=getLatestByProvProd(sede,p.proveedor,p.producto,latestMap);
+                      const histRaw=getTrendByProvProdDedup(sede,p.proveedor,p.producto,trendMap);
                       const histSorted=histRaw.filter(([f])=>!hiddenEntries.has(`${skey}||${f}`));
                       const be=histSorted.length?median(histSorted.map(([,v])=>v)):0;
                       const level=getLevel(last?.cantidad??null,p.min_stock);
@@ -961,8 +974,23 @@ function FormRegistro({ sede, records=[], user, conn, onSaved, isPreview, breake
                       const isOpen=showAddForm===addKey;
                       // Si hay un form abierto en OTRA sección, no mostrar botón aquí
                       if(showAddForm&&!isOpen) return null;
-                      // Todos los productos disponibles de esta categoría (sin filtrar por subcat)
-                      const catAvail=availableToAdd.filter(p=>p.categoria===cat);
+                      // Para subcategorías (Corporate Coffee, Café Caribe): mostrar productos
+                      // de esa subcategoría en otras sedes aunque ya existan en la sección general,
+                      // ya que son proveedores independientes.
+                      let catAvail;
+                      if(sub!==null){
+                        const existingInSubcat=new Set(allSedeProds.filter(p=>p.subcategoria===sub).map(p=>p.producto));
+                        const seenSub=new Set(existingInSubcat);
+                        const subcatOut=[];
+                        for(const prods of Object.values(INVENTARIO_CATALOG)){
+                          for(const p of prods){
+                            if(p.subcategoria===sub&&!seenSub.has(p.producto)){seenSub.add(p.producto);subcatOut.push({...p,categoria:cat});}
+                          }
+                        }
+                        catAvail=subcatOut.sort((a,b)=>a.producto.localeCompare(b.producto));
+                      } else {
+                        catAvail=availableToAdd.filter(p=>p.categoria===cat);
+                      }
                       if(!catAvail.length&&!isOpen) return null;
                       const subLabel=sub===null?"Cafetería":sub;
                       return isOpen?(
@@ -1562,6 +1590,27 @@ export default function Inventario({ user, conn }) {
       // Fetch inventory + config in parallel (config updates sede assignments for CMs)
       const [fresh, configRows] = await Promise.all([fetchInventario(), fetchConfig().catch(()=>[])]);
       if (configRows.length) applyConfig(configRows);
+
+      // Push local extra products (added offline) that aren't in Sheets yet
+      const globalProdNames = new Set(parseProdGlobal(configRows).map(p => p.producto));
+      let allLocalProds = [];
+      try {
+        const lp = JSON.parse(localStorage.getItem("cw_extra_prods") || "{}");
+        allLocalProds = Object.values(lp).flat();
+      } catch {}
+      const missingProds = allLocalProds.filter(p => p.producto && !globalProdNames.has(p.producto));
+      if (missingProds.length > 0) {
+        await Promise.all(missingProds.map(p =>
+          upsertConfig("prod_global", p.producto, JSON.stringify({
+            categoria: p.categoria || "Cafetería",
+            proveedor: p.proveedor || "Cafetería",
+            min_stock: p.min_stock || 1,
+          })).catch(console.error)
+        ));
+        const updatedConfig = await fetchConfig().catch(() => []);
+        if (updatedConfig.length) applyConfig(updatedConfig);
+      }
+
       const freshIds = new Set(fresh.map(r => r.id));
       // Find records in local cache not yet in Sheets
       const cached = getCached();
@@ -1574,8 +1623,9 @@ export default function Inventario({ user, conn }) {
       const updated = await fetchInventario();
       setRecords(updated);
       setCached(updated);
-      setSyncMsg(missing.length > 0
-        ? `Sincronización completa: ${missing.length} registro(s) subido(s) a Sheets.`
+      const prodMsg = missingProds.length > 0 ? ` y ${missingProds.length} insumo(s)` : "";
+      setSyncMsg(missing.length > 0 || missingProds.length > 0
+        ? `Sincronización completa: ${missing.length} registro(s)${prodMsg} subido(s) a Sheets.`
         : "Sincronización completa: todos los datos ya estaban en Sheets.");
       setTimeout(() => setSyncMsg(null), 6000);
     } catch(e) {
