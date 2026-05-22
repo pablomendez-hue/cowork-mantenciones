@@ -881,9 +881,13 @@ function FormRegistro({ sede, records=[], user, conn, onSaved, isPreview, breake
                     </div>
                     {subProds.map((p,idx)=>{
                       const fkey=`${p.proveedor}|||${p.producto}`;
-                      const skey=`${sede}||${p.proveedor}||${p.producto}`;
-                      const last=getLatestByProvProd(sede,p.proveedor,p.producto,latestMap);
-                      const histRaw=getTrendByProvProdDedup(sede,p.proveedor,p.producto,trendMap);
+                      // Productos con subcategoría (Corporate Coffee, Café Caribe): lookup por proveedor
+                      // para separar sus inventarios aunque tengan el mismo nombre de producto.
+                      // Productos generales: lookup solo por nombre para no romper registros históricos.
+                      const usesSubcat=!!p.subcategoria;
+                      const skey=usesSubcat?`${sede}||${p.proveedor}||${p.producto}`:`${sede}||${p.producto}`;
+                      const last=usesSubcat?getLatestByProvProd(sede,p.proveedor,p.producto,latestMap):getLatestByProd(sede,p.producto,latestMap);
+                      const histRaw=usesSubcat?getTrendByProvProdDedup(sede,p.proveedor,p.producto,trendMap):getTrendByProdDedup(sede,p.producto,trendMap);
                       const histSorted=histRaw.filter(([f])=>!hiddenEntries.has(`${skey}||${f}`));
                       const be=histSorted.length?median(histSorted.map(([,v])=>v)):0;
                       const level=getLevel(last?.cantidad??null,p.min_stock);
