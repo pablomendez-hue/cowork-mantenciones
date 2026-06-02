@@ -19,6 +19,9 @@ function setCached(d) { localStorage.setItem("cw_inv_cache",JSON.stringify(d)); 
 // Extra products per sede (added by CM users)
 function getExtraProds(sede) { try { return (JSON.parse(localStorage.getItem("cw_extra_prods")||"{}")[sede])||[]; } catch { return []; } }
 function saveExtraProds(sede,prods) { try { const all=JSON.parse(localStorage.getItem("cw_extra_prods")||"{}"); all[sede]=prods; localStorage.setItem("cw_extra_prods",JSON.stringify(all)); } catch {} }
+// Pending record IDs: records saved locally while offline that haven't reached Sheets yet
+function getPendingIds() { try { return new Set(JSON.parse(localStorage.getItem("cw_pending_ids")||"[]")); } catch { return new Set(); } }
+function addPendingIds(ids) { const s=getPendingIds(); ids.forEach(id=>s.add(id)); localStorage.setItem("cw_pending_ids",JSON.stringify([...s])); }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function fdate(d) {
@@ -762,6 +765,7 @@ function FormRegistro({ sede, records=[], user, conn, onSaved, isPreview, breake
         if (conn) {
           await saveInventarioRegistro(newR);
         } else {
+          addPendingIds(newR.map(r=>r.id));
           setSaveError("Sin conexión a Sheets. Los datos se guardaron localmente pero no serán visibles para otros usuarios hasta que se restablezca la conexión.");
         }
         const updated=[...records,...newR];
@@ -1574,10 +1578,11 @@ export default function Inventario({ user, conn }) {
     setLoading(true);
     Promise.all([fetchInventario(), fetchConfig()])
       .then(([data, configRows])=>{
-        // Preserve locally-saved records that haven't made it to Sheets yet
+        // Preserve only explicitly-pending records (saved offline) not yet in Sheets
         const localCache = getCached();
         const sheetIds = new Set(data.map(r=>r.id));
-        const pending = localCache.filter(r=>r.id && !sheetIds.has(r.id));
+        const pendingIds = getPendingIds();
+        const pending = localCache.filter(r=>r.id && !sheetIds.has(r.id) && pendingIds.has(r.id));
         const merged = pending.length > 0 ? [...data, ...pending] : data;
         setRecords(merged); setCached(merged);
         applyConfig(configRows);
@@ -1616,15 +1621,21 @@ export default function Inventario({ user, conn }) {
       }
 
       const freshIds = new Set(fresh.map(r => r.id));
-      // Find records in local cache not yet in Sheets
+      // Only push records explicitly marked as pending (saved offline), not all local-cache records.
+      // This prevents re-uploading records deleted remotely by admin.
+      const pendingIds = getPendingIds();
       const cached = getCached();
-      const missing = cached.filter(r => r.id && !freshIds.has(r.id));
+      const missing = cached.filter(r => r.id && !freshIds.has(r.id) && pendingIds.has(r.id));
       // Push missing records to Sheets
       if (missing.length > 0) {
         await saveInventarioRegistro(missing);
       }
       // Refetch fresh data from Sheets and update state
       const updated = await fetchInventario();
+      // Reconcile pending IDs: remove any that are now confirmed in Sheets
+      const confirmedIds = new Set(updated.map(r => r.id));
+      const stillPending = [...getPendingIds()].filter(id => !confirmedIds.has(id));
+      localStorage.setItem("cw_pending_ids", JSON.stringify(stillPending));
       setRecords(updated);
       setCached(updated);
       const prodMsg = missingProds.length > 0 ? ` y ${missingProds.length} insumo(s)` : "";
