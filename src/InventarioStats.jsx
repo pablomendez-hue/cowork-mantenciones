@@ -5,6 +5,7 @@ import { fetchInventario } from "./inventario_sheets.js";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function getCached(){try{return JSON.parse(localStorage.getItem("cw_inv_cache")||"[]")}catch{return[]}}
+function setCached(d){localStorage.setItem("cw_inv_cache",JSON.stringify(d))}
 function getLevel(qty,min){if(qty==null)return"nd";if(qty<=0)return"rojo";if(qty<=min)return"amarillo";return"ok"}
 function getMinStk(sede,prod){return(INVENTARIO_CATALOG[sede]||[]).find(p=>p.producto===prod)?.min_stock??null}
 function fdate(d){if(!d)return"—";return new Date(d+"T12:00:00").toLocaleDateString("es-CL",{day:"2-digit",month:"short"})}
@@ -126,7 +127,7 @@ export default function InventarioStats({conn}){
 
   useEffect(()=>{
     if(!conn)return;
-    fetchInventario().then(d=>setRecords(d)).catch(()=>{});
+    fetchInventario().then(d=>{setRecords(d);setCached(d);}).catch(()=>{});
   },[conn]);
 
   const latestMap=useMemo(()=>buildLatest(records),[records]);
