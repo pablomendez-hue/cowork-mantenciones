@@ -64,6 +64,7 @@ export const USERS = [
 export const ROLE_LABELS = { cm: "Comercial", ops: "Operaciones", admin: "Administrador" };
 export const ROLE_COLORS = { cm: "#3b82f6", ops: "#f97316", admin: "#8b5cf6" };
 export const NOTIFY_EMAILS = { admin: ["maria.fernanda@co-work.cl","pablo.mendez@coworklatam.com","sebastian.oryan@co-work.cl"], ops: ["luis.morales@co-work.cl","osaris@co-work.cl","maria.p@co-work.cl"] };
+export const QUOTE_EMAILS = ["luis.morales@co-work.cl", "jesus.ubilla@co-work.cl"];
 export const fmt = (n) => (n == null ? "\u2014" : "$" + n.toLocaleString("es-CL"));
 export const fdate = (d) => { if (!d) return ""; const dt = new Date(d + "T12:00:00"); return dt.toLocaleDateString("es-CL", { day: "2-digit", month: "short" }); };
 export const daysAgo = (d) => { if (!d) return 0; return Math.floor((new Date() - new Date(d + "T12:00:00")) / 86400000); };
