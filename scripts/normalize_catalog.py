@@ -106,7 +106,7 @@ def fix(s):
 
 sede_map = {
     'ABEDULES':'Abedules','APOQUINDO':'Apoquindo','ALTO EL GOLF':'Alto el Golf',
-    'LOS MILITARES-BCI':'Los Militares - NACE','MONJITAS':'Monjitas','ISIDORA':'Isidora',
+    'LOS MILITARES-BCI':'Los Militares - NACE','MONJITAS':'Nido 9','NIDO 9':'Nido 9','ISIDORA':'Isidora',
     'VESPUCIO':'Vespucio','NUEVA LAS CONDES':'Nueva Las Condes','KENNEDY':'Kennedy',
     'CERRO EL PLOMO':'Cerro el Plomo','SANTA LUCIA':'Santa Lucia','SANTA ROSA ':'Santa Rosa',
     'PLAZA EGA\xd1A':'Plaza Ega\u00f1a','NEOHAUS':'Neohaus','MANUEL MONTT 2 & 5':'Manuel Montt',

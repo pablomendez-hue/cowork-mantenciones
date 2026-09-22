@@ -19,7 +19,7 @@ export const PRIORITY = {
 export const SEDES = [
   "Abedules","Alto el Golf","Apoquindo","BCI-1 Kennedy","Cencosud-1",
   "Cerro el Plomo","Holanda","Isidora","Londres",
-  "Los Militares - NACE","Manuel Montt","Monjitas","MUT",
+  "Los Militares - NACE","Manuel Montt","Nido 9","MUT",
   "Neohaus","Nueva Las Condes","Plaza Ega\u00f1a","Principe de Gales",
   "Rosario Norte","S2GO","Salesforce","San Sebastian - MACH",
   "Santa Lucia","Startuplab.01","StartupLab","Suecia","Tobalaba-P3","Vespucio",
@@ -60,6 +60,8 @@ export const USERS = [
   { name:"Sonnie Rubio", email:"sonnie.rubio@co-work.cl", role:"cm" },
   { name:"Marlin Garcia", email:"marlin.garcia@co-work.cl", role:"cm" },
   { name:"Carlos Sanchez", email:"carlos.sanchez@co-work.cl", role:"ops" },
+  { name:"Berta Nahuelcheo", email:"berta.nahuelcheo@co-work.cl", role:"admin" },
+  { name:"Antonietta Cusati", email:"antonietta.cusati@co-work.cl", role:"admin" },
 ];
 export const ROLE_LABELS = { cm: "Comercial", ops: "Operaciones", admin: "Administrador" };
 export const ROLE_COLORS = { cm: "#3b82f6", ops: "#f97316", admin: "#8b5cf6" };

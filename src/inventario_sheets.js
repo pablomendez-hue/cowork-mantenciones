@@ -1,3 +1,5 @@
+import { canonicalSede } from "./sedes.js";
+
 const SHEET_ID = import.meta.env.VITE_GOOGLE_SHEET_ID;
 const API_KEY = import.meta.env.VITE_GOOGLE_API_KEY;
 const APPS_SCRIPT_URL = import.meta.env.VITE_APPS_SCRIPT_URL;
@@ -8,7 +10,7 @@ const RANGE = SHEET_NAME + "!A:H";
 function rowToRecord(row) {
   return {
     id: row[0] || "",
-    sede: row[1] || "",
+    sede: canonicalSede(row[1] || ""),
     proveedor: row[2] || "",
     producto: row[3] || "",
     fecha: row[4] || "",
@@ -19,7 +21,7 @@ function rowToRecord(row) {
 }
 
 function recordToRow(r) {
-  return [r.id, r.sede, r.proveedor, r.producto, r.fecha, r.cantidad ?? "", r.tipo, r.registrado_por];
+  return [r.id, canonicalSede(r.sede), r.proveedor, r.producto, r.fecha, r.cantidad ?? "", r.tipo, r.registrado_por];
 }
 
 export async function fetchInventario() {

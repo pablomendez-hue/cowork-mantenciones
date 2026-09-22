@@ -128,7 +128,7 @@ Inventario (root)
 ---
 
 ## Sedes activas en INVENTARIO_SEDES (24 total)
-Abedules, Alto el Golf, Apoquindo, Cerro el Plomo, **Chery**, **Coldwell**, Florida Center, Isidora, Kennedy, **Liquidos**, **Londres 43 - PPD**, Los Militares - NACE, Manuel Montt, Monjitas, Neohaus, Nueva Las Condes, Plaza Egaña, **S2GO**, **Salesforce**, Santa Lucia, Santa Rosa, Suecia, Tobalaba-P3, Vespucio
+Abedules, Alto el Golf, Apoquindo, Cerro el Plomo, **Chery**, **Coldwell**, Florida Center, Isidora, Kennedy, **Liquidos**, **Londres 43 - PPD**, Los Militares - NACE, Manuel Montt, Nido 9, Neohaus, Nueva Las Condes, Plaza Egaña, **S2GO**, **Salesforce**, Santa Lucia, Santa Rosa, Suecia, Tobalaba-P3, Vespucio
 
 *(Las 6 en negrita fueron agregadas en abril 2026 y tienen catálogo vacío — los CMs las pueblan desde el formulario)*
 
