@@ -2,9 +2,10 @@ import { useState, useEffect, useMemo } from "react";
 import { INVENTARIO_CATALOG, INVENTARIO_SEDES } from "./inventario_catalog.js";
 import { INVENTARIO_EXCEL_TREND, INVENTARIO_EXCEL_LATEST } from "./inventario_history.js";
 import { fetchInventario } from "./inventario_sheets.js";
+import { canonicalSede } from "./sedes.js";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-function getCached(){try{return JSON.parse(localStorage.getItem("cw_inv_cache")||"[]")}catch{return[]}}
+function getCached(){try{return JSON.parse(localStorage.getItem("cw_inv_cache")||"[]").map(r=>({...r,sede:canonicalSede(r.sede)}))}catch{return[]}}
 function setCached(d){localStorage.setItem("cw_inv_cache",JSON.stringify(d))}
 function getLevel(qty,min){if(qty==null)return"nd";if(qty<=0)return"rojo";if(qty<=min)return"amarillo";return"ok"}
 function getMinStk(sede,prod){return(INVENTARIO_CATALOG[sede]||[]).find(p=>p.producto===prod)?.min_stock??null}

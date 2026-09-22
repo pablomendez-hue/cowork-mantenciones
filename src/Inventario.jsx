@@ -4,6 +4,7 @@ import { INVENTARIO_EXCEL_LATEST, INVENTARIO_EXCEL_TREND } from "./inventario_hi
 import { fetchInventario, saveInventarioRegistro, updateInventarioRecord, deleteInventarioRecord } from "./inventario_sheets.js";
 import { upsertConfig, fetchConfig, parseProdCat, parseBreakeven, parseProdGlobal, parseSedeCM } from "./config_sheets.js";
 import { USERS, today } from "./constants.js";
+import { canonicalSede } from "./sedes.js";
 
 // ── Shared styles ────────────────────────────────────────────────────────────
 const I = { appearance:"none",WebkitAppearance:"none",background:"#fff",border:"1px solid #e5e5e5",borderRadius:7,padding:"8px 11px",fontSize:12,color:"#1a1a1a",width:"100%",fontFamily:"'Sora',sans-serif",outline:"none",boxSizing:"border-box" };
@@ -11,14 +12,14 @@ const BP = { background:"#1a1a1a",color:"#fff",border:"none",borderRadius:7,padd
 const FL = { fontSize:10,fontWeight:500,color:"#a3a3a3",display:"block",marginBottom:4,textTransform:"uppercase",letterSpacing:"0.04em" };
 
 // ── localStorage ─────────────────────────────────────────────────────────────
-function getSedeCMMap() { try { return JSON.parse(localStorage.getItem("cw_sede_cm")||"{}"); } catch { return {}; } }
+function getSedeCMMap() { try { const map=JSON.parse(localStorage.getItem("cw_sede_cm")||"{}"); return Object.fromEntries(Object.entries(map).map(([email,sede])=>[email,canonicalSede(sede)])); } catch { return {}; } }
 function setSedeCMMap(m) { localStorage.setItem("cw_sede_cm",JSON.stringify(m)); }
 function getCMSede(email) { return getSedeCMMap()[email.toLowerCase()]||null; }
-function getCached() { try { return JSON.parse(localStorage.getItem("cw_inv_cache")||"[]"); } catch { return []; } }
+function getCached() { try { return JSON.parse(localStorage.getItem("cw_inv_cache")||"[]").map(r=>({...r,sede:canonicalSede(r.sede)})); } catch { return []; } }
 function setCached(d) { localStorage.setItem("cw_inv_cache",JSON.stringify(d)); }
 // Extra products per sede (added by CM users)
-function getExtraProds(sede) { try { return (JSON.parse(localStorage.getItem("cw_extra_prods")||"{}")[sede])||[]; } catch { return []; } }
-function saveExtraProds(sede,prods) { try { const all=JSON.parse(localStorage.getItem("cw_extra_prods")||"{}"); all[sede]=prods; localStorage.setItem("cw_extra_prods",JSON.stringify(all)); } catch {} }
+function getExtraProds(sede) { try { const all=JSON.parse(localStorage.getItem("cw_extra_prods")||"{}"); return [...(all[sede]||[]),...(sede==="Nido 9"?all.Monjitas||[]:[])].filter((p,i,arr)=>arr.findIndex(q=>q.producto===p.producto)===i); } catch { return []; } }
+function saveExtraProds(sede,prods) { try { const all=JSON.parse(localStorage.getItem("cw_extra_prods")||"{}"); all[sede]=prods; if(sede==="Nido 9")delete all.Monjitas; localStorage.setItem("cw_extra_prods",JSON.stringify(all)); } catch {} }
 // Pending record IDs: records saved locally while offline that haven't reached Sheets yet
 function getPendingIds() { try { return new Set(JSON.parse(localStorage.getItem("cw_pending_ids")||"[]")); } catch { return new Set(); } }
 function addPendingIds(ids) { const s=getPendingIds(); ids.forEach(id=>s.add(id)); localStorage.setItem("cw_pending_ids",JSON.stringify([...s])); }
@@ -1561,7 +1562,7 @@ export default function Inventario({ user, conn }) {
   const [extraProds, setExtraProds] = useState([]);
   const [deletedProds, setDeletedProds] = useState(new Set());
   // sedeCM: maps email → sede for CM users — read from localStorage initially, updated on load/sync
-  const [sedeCM, setSedeCM] = useState(()=>{ try { return JSON.parse(localStorage.getItem("cw_sede_cm")||"{}"); } catch { return {}; } });
+  const [sedeCM, setSedeCM] = useState(getSedeCMMap);
 
   const applyConfig = (configRows) => {
     setCatOverrides(parseProdCat(configRows));

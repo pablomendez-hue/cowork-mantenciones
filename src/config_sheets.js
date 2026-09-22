@@ -1,3 +1,5 @@
+import { canonicalSede, canonicalSedeKey } from "./sedes.js";
+
 // Config sheet: tipo | clave | valor | updated_at
 // Stores sede assignments and user role overrides synced across all devices.
 
@@ -39,7 +41,7 @@ export async function upsertConfig(tipo, clave, valor) {
 export function parseSedeCM(configRows) {
   const map = {};
   for (const r of configRows) {
-    if (r.tipo === "sede_cm" && r.clave) map[r.clave.toLowerCase()] = r.valor || null;
+    if (r.tipo === "sede_cm" && r.clave) map[r.clave.toLowerCase()] = canonicalSede(r.valor) || null;
   }
   return map;
 }
@@ -82,7 +84,7 @@ export function parseBreakeven(configRows) {
   for (const r of configRows) {
     if (r.tipo === "breakeven" && r.clave && r.valor) {
       const val = parseFloat(r.valor);
-      if (!isNaN(val)) map[r.clave] = val;
+      if (!isNaN(val)) map[canonicalSedeKey(r.clave)] = val;
     }
   }
   return map;

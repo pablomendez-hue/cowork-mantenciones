@@ -15,7 +15,7 @@ export function pendingQuoteTickets(rows) {
     num: Number(row[1]) || 0,
     category: row[2] || "",
     desc: row[3] || "",
-    sede: row[4] || "",
+    sede: row[4] === "Monjitas" ? "Nido 9" : row[4] || "",
     priority: row[5] || "",
     by: row[7] || "",
     date: normalizeDate(row[8]),
