@@ -6,8 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview",
-    "test": "node scripts/test-weekly-reminder.mjs"
+    "preview": "vite preview"
   },
   "dependencies": {
     "react": "^18.2.0",
