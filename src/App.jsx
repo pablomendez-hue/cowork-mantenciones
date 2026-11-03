@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
-import { COLUMNS, COL_IDS, CATEGORIES, PRIORITY, SEDES, USERS, ROLE_LABELS, ROLE_COLORS, NOTIFY_EMAILS, QUOTE_EMAILS, fmt, fdate, daysAgo, today } from "./constants.js";
-import { isConfigured, fetchAllTickets, createTicket, updateTicket, deleteTicket, sendNotification, testConnection } from "./sheets.js";
+import { COLUMNS, COL_IDS, CATEGORIES, PRIORITY, SEDES, USERS, ROLE_LABELS, ROLE_COLORS, fmt, fdate, daysAgo, today } from "./constants.js";
+import { isConfigured, fetchAllTickets, createTicket, updateTicket, deleteTicket, testConnection } from "./sheets.js";
 import { fetchConfig, upsertConfig, parseSedeCM, parseExtraUsers, parseRoleOverrides } from "./config_sheets.js";
 import Inventario from "./Inventario.jsx";
 import InventarioStats from "./InventarioStats.jsx";
@@ -241,27 +241,19 @@ export default function App(){
 
   const persist=async u=>{if(!conn)return;savRef.current=true;setSaving(true);try{await updateTicket(u)}catch(e){console.error(e);setErr("Error al guardar");setTimeout(()=>setErr(null),3000)}finally{setSaving(false);savRef.current=false}};
 
-  const doNotify=async(item,type)=>{
-    if(!conn)return;const tag="#"+String(item.num).padStart(3,"0");const allU=getAllUsers();
-    const opsEmails=allU.filter(u=>u.role==="ops").map(u=>u.email);
-    const admEmails=allU.filter(u=>u.role==="admin").map(u=>u.email);
-    let emailTo=[...new Set([...admEmails,...opsEmails])];
-    if(item.assignee){const au=allU.find(u=>u.name===item.assignee);if(au&&!emailTo.includes(au.email))emailTo.push(au.email)}
-    if(item.by){const bu=allU.find(u=>u.name===item.by);if(bu&&!emailTo.includes(bu.email))emailTo.push(bu.email)}
-    let sub="",body="";
-    if(type==="new"){emailTo=QUOTE_EMAILS;const link=window.location.origin+"/?ticket="+item.id;sub="[Mantenciones] Nuevo ticket "+tag+" - "+item.sede;body="Se creó un nuevo ticket de mantención.\n\n"+tag+" - "+item.desc+"\nCategoría: "+item.category+"\nSede: "+item.sede+"\nPrioridad: "+item.priority+"\nCreado por: "+item.by+"\nFecha: "+item.date+"\n\nIngresen al ticket para completar el nombre del proveedor y el precio de la cotización:\n"+link}
-    else if(type==="stage"){const sl=STG[item.stage]||item.stage;sub="[Mantenciones] "+tag+" "+item.sede+" > "+sl;body=tag+" - "+item.desc+"\nSede: "+item.sede+"\nNuevo estado: "+sl+"\nResponsable: "+(item.assignee||"Sin asignar")+"\nMovido por: "+user.name;addNotif({title:tag+" paso a "+sl,body:item.desc+" ("+item.sede+")",to:"all"})}
-    else if(type==="execDate"){sub="[Mantenciones] "+tag+" Fecha programada: "+fdate(item.execDate);body=tag+" - "+item.desc+"\nSede: "+item.sede+"\nFecha programada: "+fdate(item.execDate)+"\nResponsable: "+(item.assignee||"Sin asignar")+"\nPor: "+user.name;addNotif({title:tag+" fecha programada",body:fdate(item.execDate)+" - "+item.sede,to:"all"})}
-    else if(type==="comment"){sub="[Mantenciones] "+tag+" Nuevo comentario de "+user.name;const last=(item.comments||[]).slice(-1)[0];body=tag+" - "+item.desc+"\nSede: "+item.sede+"\nComentario de "+user.name+":\n"+(last?last.text:"")+"\nResponsable: "+(item.assignee||"Sin asignar");addNotif({title:tag+" comentario de "+user.name,body:last?last.text.substring(0,60):"",to:"all"})}
-    else if(type==="assignee"){sub="[Mantenciones] "+tag+" Asignado a "+item.assignee;body=tag+" - "+item.desc+"\nSede: "+item.sede+"\nSolicitante: "+item.by+"\nAsignado a: "+item.assignee+"\nAsignado por: "+user.name+"\n\nEste ticket ahora es tu responsabilidad.";addNotif({title:tag+" asignado a "+item.assignee,body:item.desc.substring(0,50)+" ("+item.sede+")",to:item.assignee});addNotif({title:tag+" tu ticket fue asignado a "+item.assignee,body:item.desc.substring(0,50),to:item.by})}
-    if(emailTo.length)try{await sendNotification(emailTo,sub,body)}catch(e){console.error("Notify:",e)}
+  const doNotify=(item,type)=>{
+    const tag="#"+String(item.num).padStart(3,"0");
+    if(type==="stage"){const sl=STG[item.stage]||item.stage;addNotif({title:tag+" paso a "+sl,body:item.desc+" ("+item.sede+")",to:"all"})}
+    else if(type==="execDate"){addNotif({title:tag+" fecha programada",body:fdate(item.execDate)+" - "+item.sede,to:"all"})}
+    else if(type==="comment"){const last=(item.comments||[]).slice(-1)[0];addNotif({title:tag+" comentario de "+user.name,body:last?last.text.substring(0,60):"",to:"all"})}
+    else if(type==="assignee"){addNotif({title:tag+" asignado a "+item.assignee,body:item.desc.substring(0,50)+" ("+item.sede+")",to:item.assignee});addNotif({title:tag+" tu ticket fue asignado a "+item.assignee,body:item.desc.substring(0,50),to:item.by})}
   };
 
   const nextNum=()=>{const ns=items.map(i=>i.num||0);return ns.length?Math.max(...ns)+1:1};
 
   const handleDrop=useCallback((id,ns)=>{const isEmiliaU=user.email.toLowerCase()==="emilia@co-work.cl";let dropped=null;setItems(p=>p.map(t=>{if(t.id!==id)return t;const f=COL_IDS.indexOf(t.stage),to=COL_IDS.indexOf(ns);if(Math.abs(to-f)!==1||to<f)return t;if(ns==="pago"&&(!t.provider||!t.amount))return t;if(ns==="en_proceso"&&!t.payment)return t;if(ns==="en_proceso"&&user.role!=="admin"&&!isEmiliaU)return t;if(ns==="finalizado"&&user.role!=="ops"&&user.role!=="admin"&&!isEmiliaU)return t;const it={...t,stage:ns};if(ns==="finalizado")it.closedAt=today();dropped=it;return it}));if(dropped){persist(dropped);doNotify(dropped,"stage")}},[conn,user]);
 
-  const handleNew=async f=>{const it={id:Date.now(),num:nextNum(),...f,stage:"requerimiento",date:today(),provider:null,amount:null,payment:null,closedAt:null,execDate:null,comments:[],assignee:null};setItems(p=>[it,...p]);setShowNew(false);if(conn){savRef.current=true;setSaving(true);try{await createTicket(it);await doNotify(it,"new")}catch(e){console.error(e)}finally{setSaving(false);savRef.current=false}}};
+  const handleNew=async f=>{const it={id:Date.now(),num:nextNum(),...f,stage:"requerimiento",date:today(),provider:null,amount:null,payment:null,closedAt:null,execDate:null,comments:[],assignee:null};setItems(p=>[it,...p]);setShowNew(false);if(conn){savRef.current=true;setSaving(true);try{await createTicket(it)}catch(e){console.error(e)}finally{setSaving(false);savRef.current=false}}};
 
   const handleUpd=async(id,upd,nt)=>{let ui;setItems(p=>p.map(t=>{if(t.id!==id)return t;ui={...t,...upd};return ui}));if(ui){await persist(ui);if(nt)doNotify(ui,nt)}};
 
