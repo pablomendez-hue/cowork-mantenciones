@@ -46,6 +46,5 @@ async function callAppsScript(action, payload) {
 export async function createTicket(item) { return callAppsScript("create", { row: itemToRow(item) }); }
 export async function updateTicket(item) { return callAppsScript("update", { id: item.id, row: itemToRow(item) }); }
 export async function deleteTicket(id) { return callAppsScript("delete", { id }); }
-export async function sendNotification(emails, subject, body) { return callAppsScript("notify", { emails, subject, body }); }
 export async function testConnection() { try { const url = "https://sheets.googleapis.com/v4/spreadsheets/"+SHEET_ID+"/values/"+SHEET_NAME+"!A1:A1?key="+API_KEY; const res = await fetch(url); return res.ok; } catch { return false; } }
 export function isConfigured() { return !!(SHEET_ID && API_KEY && APPS_SCRIPT_URL); }
