@@ -1,8 +1,1 @@
-{
-  "crons": [
-    {
-      "path": "/api/weekly-quote-reminder",
-      "schedule": "0 13 * * 1"
-    }
-  ]
-}
+{}
