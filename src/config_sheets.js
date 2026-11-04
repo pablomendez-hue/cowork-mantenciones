@@ -26,13 +26,14 @@ export async function fetchConfig() {
 
 // ── Write / upsert one config entry ──────────────────────────────────────────
 export async function upsertConfig(tipo, clave, valor) {
-  const res = await fetch(APPS_SCRIPT_URL, {
+  const res = await fetch("/api/sheets-write", {
     method: "POST",
-    headers: { "Content-Type": "text/plain" },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ action: "upsertConfig", tipo, clave, valor }),
   });
-  if (!res.ok) throw new Error("upsertConfig error: " + res.status);
-  return res.json();
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || data.success === false) throw new Error(data.error || "upsertConfig error: " + res.status);
+  return data;
 }
 
 // ── Parse helpers ─────────────────────────────────────────────────────────────
