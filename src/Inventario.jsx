@@ -451,6 +451,47 @@ function MatrixTable({ latestMap, filtCat, onSedeClick, activeSedeCol, catOverri
 // ══════════════════════════════════════════════════════════════════════════════
 // ADMIN VIEW
 // ══════════════════════════════════════════════════════════════════════════════
+function ListaCompras({ latestMap, extraProds=[], deletedProds=new Set() }) {
+  const rows = useMemo(()=>{
+    const out=[];
+    for(const sede of INVENTARIO_SEDES){
+      const prods=[...(INVENTARIO_CATALOG[sede]||[]),...extraProds];
+      const seen=new Set();
+      for(const p of prods){
+        if(!p.producto||seen.has(p.producto)||deletedProds.has(p.producto))continue;
+        seen.add(p.producto);
+        const min=Number(getMinStockByProd(sede,p.producto)??p.min_stock??0);
+        const entry=getLatestByProd(sede,p.producto,latestMap);
+        const actual=Number(entry?.cantidad??0);
+        const comprar=Math.max(0,min-actual);
+        if(comprar>0)out.push({producto:p.producto,actual,min,comprar,sede});
+      }
+    }
+    return out.sort((a,b)=>a.sede.localeCompare(b.sede)||a.producto.localeCompare(b.producto));
+  },[latestMap,extraProds,deletedProds]);
+
+  return <div style={{ flex:1,overflowY:"auto",padding:"20px 24px",fontFamily:"'Sora',sans-serif" }}>
+    <div style={{ display:"flex",alignItems:"flex-end",justifyContent:"space-between",marginBottom:14 }}>
+      <div><div style={{ fontSize:15,fontWeight:700 }}>Lista de compras</div><div style={{ fontSize:10,color:"#a3a3a3",marginTop:3 }}>Insumos bajo el stock mínimo, ordenados por sede.</div></div>
+      <div style={{ fontSize:11,color:"#b45309",background:"#fffbeb",border:"1px solid #fde68a",borderRadius:6,padding:"5px 9px" }}><strong>{rows.length}</strong> pendientes</div>
+    </div>
+    <div style={{ background:"#fff",border:"1px solid #e5e5e5",borderRadius:10,overflow:"hidden" }}>
+      <table style={{ width:"100%",borderCollapse:"collapse",fontSize:11 }}>
+        <thead><tr style={{ background:"#fafafa",borderBottom:"1px solid #e5e5e5" }}>
+          {["Tipo de producto","Actual","Mínimo","A comprar","Sede"].map((h,i)=><th key={h} style={{ padding:"10px 14px",textAlign:i===0||i===4?"left":"center",fontSize:9,color:"#a3a3a3",textTransform:"uppercase",letterSpacing:"0.05em",fontWeight:600 }}>{h}</th>)}
+        </tr></thead>
+        <tbody>{rows.length?rows.map((r,i)=><tr key={`${r.sede}||${r.producto}`} style={{ borderBottom:i<rows.length-1?"1px solid #f5f5f5":"none" }}>
+          <td style={{ padding:"10px 14px",fontWeight:500,color:"#262626" }}>{r.producto}</td>
+          <td style={{ padding:"10px 14px",textAlign:"center",fontFamily:"'JetBrains Mono',monospace",color:r.actual<=0?"#dc2626":"#737373" }}>{r.actual}</td>
+          <td style={{ padding:"10px 14px",textAlign:"center",fontFamily:"'JetBrains Mono',monospace",color:"#737373" }}>{r.min}</td>
+          <td style={{ padding:"10px 14px",textAlign:"center" }}><span style={{ display:"inline-block",minWidth:30,padding:"3px 8px",borderRadius:5,background:"#fef2f2",color:"#dc2626",fontFamily:"'JetBrains Mono',monospace",fontWeight:700 }}>{r.comprar}</span></td>
+          <td style={{ padding:"10px 14px",color:"#525252" }}>{r.sede}</td>
+        </tr>):<tr><td colSpan="5" style={{ padding:30,textAlign:"center",color:"#a3a3a3" }}>No hay insumos pendientes de compra.</td></tr>}</tbody>
+      </table>
+    </div>
+  </div>;
+}
+
 function InventarioAdmin({ records, user, conn, onSaved, catOverrides={}, breakevenMap={}, onCatOverride, onBreakevenChange, extraProds=[], onAddProd, onRemoveProd, deletedProds=new Set(), onDeleteCatalogProd, onSync, syncing, syncMsg }) {
   const [tab, setTab] = useState("resumen");
   const [filtCat, setFiltCat] = useState("");
@@ -513,6 +554,7 @@ function InventarioAdmin({ records, user, conn, onSaved, catOverrides={}, breake
       <div style={{ padding:"10px 20px",borderBottom:"1px solid #f0f0f0",display:"flex",alignItems:"center",gap:8,flexShrink:0,flexWrap:"wrap" }}>
         <div style={{ display:"flex",gap:4 }}>
           {navBtn("resumen","Resumen")}
+          {navBtn("compras","Lista de compras")}
           {navBtn("registrar","Registrar")}
           {navBtn("historial","Historial")}
           {navBtn("directorio","Directorio")}
@@ -563,6 +605,7 @@ function InventarioAdmin({ records, user, conn, onSaved, catOverrides={}, breake
             )}
           </>
         )}
+        {tab==="compras"&&<ListaCompras latestMap={latestMap} extraProds={extraProds} deletedProds={deletedProds}/>}
         {tab==="registrar"&&(
           <div style={{ flex:1,overflowY:"auto",padding:"20px 24px" }}>
             <div style={{ marginBottom:16 }}>
@@ -688,6 +731,14 @@ function FormRegistro({ sede, records=[], user, conn, onSaved, isPreview, breake
   const latestMap = useMemo(()=>buildLatestMap(records),[records]);
   const trendMap  = useMemo(()=>buildTrendMap(records),[records]);
   const isAdmin = user?.role==="admin"||user?.role==="ops";
+  const lastSedeUpdate = useMemo(()=>{
+    const sedeRecords = records.filter(r=>r.sede===sede && r.fecha);
+    if (!sedeRecords.length) return null;
+    const lastDate = sedeRecords.reduce((max,r)=>r.fecha>max?r.fecha:max, "");
+    const lastRecords = sedeRecords.filter(r=>r.fecha===lastDate);
+    const names = [...new Set(lastRecords.map(r=>r.registrado_por).filter(Boolean))];
+    return { fecha:lastDate, count:lastRecords.length, registrado_por:names.join(", ") };
+  },[records,sede]);
 
   // Hidden-entry key uses sede||produto (no proveedor) to be provider-agnostic
   const hideEntry = (skey, f, liveRec) => {
@@ -764,7 +815,8 @@ function FormRegistro({ sede, records=[], user, conn, onSaved, isPreview, breake
     try {
       if (!isPreview) {
         if (conn) {
-          await saveInventarioRegistro(newR);
+          const result = await saveInventarioRegistro(newR);
+          if (result?.pending) addPendingIds(newR.map(r=>r.id));
         } else {
           addPendingIds(newR.map(r=>r.id));
           setSaveError("Sin conexión a Sheets. Los datos se guardaron localmente pero no serán visibles para otros usuarios hasta que se restablezca la conexión.");
@@ -793,7 +845,8 @@ function FormRegistro({ sede, records=[], user, conn, onSaved, isPreview, breake
     try {
       if (!isPreview) {
         if (conn) {
-          await saveInventarioRegistro(newR);
+          const result = await saveInventarioRegistro(newR);
+          if (result?.pending) addPendingIds(newR.map(r=>r.id));
         } else {
           setSaveError("Sin conexión a Sheets. Los datos se guardaron localmente pero no serán visibles para otros usuarios hasta que se restablezca la conexión.");
         }
@@ -817,6 +870,20 @@ function FormRegistro({ sede, records=[], user, conn, onSaved, isPreview, breake
 
   return (
     <div style={{ fontFamily:"'Consolas','Courier New',monospace" }}>
+      <div style={{ display:"flex",alignItems:"center",gap:10,marginBottom:16,padding:"10px 13px",background:lastSedeUpdate?"#f0fdf4":"#fafafa",border:`1px solid ${lastSedeUpdate?"#bbf7d0":"#e5e5e5"}`,borderRadius:9,color:lastSedeUpdate?"#166534":"#737373" }}>
+        <div style={{ width:28,height:28,borderRadius:99,background:lastSedeUpdate?"#dcfce7":"#f0f0f0",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0 }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 6L9 17l-5-5"/></svg>
+        </div>
+        <div>
+          <div style={{ fontSize:11,fontWeight:700 }}>
+            {lastSedeUpdate ? `Último registro guardado en ${sede}: ${fdate(lastSedeUpdate.fecha)}` : `Aún no hay registros guardados para ${sede}`}
+          </div>
+          {lastSedeUpdate&&<div style={{ fontSize:9,marginTop:2,color:"#4d7c5b" }}>
+            {lastSedeUpdate.count} insumo{lastSedeUpdate.count!==1?"s":""} actualizado{lastSedeUpdate.count!==1?"s":""}
+            {lastSedeUpdate.registrado_por?` · ingresado por ${lastSedeUpdate.registrado_por}`:""}
+          </div>}
+        </div>
+      </div>
       <div style={{ display:"flex",gap:10,marginBottom:18,alignItems:"flex-end",flexWrap:"wrap" }}>
         <div style={{ width:150 }}>
           <label style={FL}>Fecha</label>
