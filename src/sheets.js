@@ -39,9 +39,10 @@ export async function fetchAllTickets() {
   return rows.slice(1).map(rowToItem).filter((item) => item.id && item.desc);
 }
 async function callAppsScript(action, payload) {
-  const res = await fetch(APPS_SCRIPT_URL, { method: "POST", headers: { "Content-Type": "text/plain" }, body: JSON.stringify({ action, ...payload }) });
-  if (!res.ok) throw new Error("Apps Script error: "+res.status);
-  return res.json();
+  const res = await fetch("/api/sheets-write", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action, ...payload }) });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || data.success === false) throw new Error(data.error || "Apps Script error: "+res.status);
+  return data;
 }
 export async function createTicket(item) { return callAppsScript("create", { row: itemToRow(item) }); }
 export async function updateTicket(item) { return callAppsScript("update", { id: item.id, row: itemToRow(item) }); }
