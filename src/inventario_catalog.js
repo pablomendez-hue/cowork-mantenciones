@@ -445,4 +445,4 @@ export const INVENTARIO_CATALOG = {
   "S2GO": [],
   "Salesforce": [],
 };
-export const INVENTARIO_SEDES = ["Abedules", "Alto el Golf", "Apoquindo", "Cerro el Plomo", "Chery", "Coldwell", "Florida Center", "Isidora", "Kennedy", "Liquidos", "Londres 43 - PPD", "Los Militares - NACE", "Manuel Montt", "Nido 9", "Neohaus", "Nueva Las Condes", "Plaza Egaña", "S2GO", "Salesforce", "Santa Lucia", "Startuplab.01", "Suecia", "Tobalaba-P3", "Vespucio"];
+export const INVENTARIO_SEDES = ["Abedules", "Alto el Golf", "Apoquindo", "Cerro el Plomo", "Chery", "Coldwell", "Kennedy", "Londres 43 - PPD", "Nido 9", "Neohaus", "Nueva Las Condes", "Plaza Egaña", "S2GO", "Salesforce", "Santa Lucia", "Startuplab.01", "Suecia", "Vespucio"];

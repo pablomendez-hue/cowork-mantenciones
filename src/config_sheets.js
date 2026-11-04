@@ -1,4 +1,4 @@
-import { canonicalSede, canonicalSedeKey } from "./sedes.js";
+import { canonicalSede, canonicalSedeKey, isRetiredSede } from "./sedes.js";
 
 // Config sheet: tipo | clave | valor | updated_at
 // Stores sede assignments and user role overrides synced across all devices.
@@ -41,7 +41,8 @@ export async function upsertConfig(tipo, clave, valor) {
 export function parseSedeCM(configRows) {
   const map = {};
   for (const r of configRows) {
-    if (r.tipo === "sede_cm" && r.clave) map[r.clave.toLowerCase()] = canonicalSede(r.valor) || null;
+    const sede = canonicalSede(r.valor);
+    if (r.tipo === "sede_cm" && r.clave && !isRetiredSede(sede)) map[r.clave.toLowerCase()] = sede || null;
   }
   return map;
 }

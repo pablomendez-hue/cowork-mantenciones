@@ -18,11 +18,10 @@ export const PRIORITY = {
 };
 export const SEDES = [
   "Abedules","Alto el Golf","Apoquindo","BCI-1 Kennedy","Cencosud-1",
-  "Cerro el Plomo","Holanda","Isidora","Londres",
-  "Los Militares - NACE","Manuel Montt","Nido 9","MUT",
+  "Cerro el Plomo","Holanda","Londres","Nido 9","MUT",
   "Neohaus","Nueva Las Condes","Plaza Ega\u00f1a","Principe de Gales",
   "Rosario Norte","S2GO","Salesforce","San Sebastian - MACH",
-  "Santa Lucia","Startuplab.01","StartupLab","Suecia","Tobalaba-P3","Vespucio",
+  "Santa Lucia","Startuplab.01","StartupLab","Suecia","Vespucio",
 ];
 export const USERS = [
   { name:"Luis Morales", email:"luis.morales@co-work.cl", role:"ops" },

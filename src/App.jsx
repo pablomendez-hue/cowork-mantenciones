@@ -4,6 +4,7 @@ import { isConfigured, fetchAllTickets, createTicket, updateTicket, deleteTicket
 import { fetchConfig, upsertConfig, parseSedeCM, parseExtraUsers, parseRoleOverrides } from "./config_sheets.js";
 import Inventario from "./Inventario.jsx";
 import InventarioStats from "./InventarioStats.jsx";
+import { isRetiredSede } from "./sedes.js";
 
 const DEMO = [
   {id:1,num:1,category:"Servicio Adicional",desc:"Instalacion tomacorrientes piso 7",sede:"Suecia",priority:"Alta",stage:"finalizado",by:"Ana Rondon",date:"2026-01-21",provider:"Servicios IA SPA",amount:642600,payment:"100",closedAt:"2026-02-01",execDate:"2026-01-28",comments:[],assignee:"Luis Morales"},
@@ -12,8 +13,8 @@ const DEMO = [
   {id:4,num:4,category:"Aire Acondicionado",desc:"Revision gas split oficina 301",sede:"Plaza Egana",priority:"Media",stage:"requerimiento",by:"Vito Lacasella",date:"2026-02-17",provider:null,amount:null,payment:null,closedAt:null,execDate:null,comments:[],assignee:null},
 ];
 function getCSedes(){try{return JSON.parse(localStorage.getItem("cw_sedes")||"[]")}catch{return[]}}
-function saveCSede(s){const l=getCSedes();if(!l.includes(s)&&!SEDES.includes(s)){l.push(s);localStorage.setItem("cw_sedes",JSON.stringify(l))}}
-function allSedes(){return[...SEDES,...getCSedes()].sort((a,b)=>a.localeCompare(b))}
+function saveCSede(s){const l=getCSedes();if(!isRetiredSede(s)&&!l.includes(s)&&!SEDES.includes(s)){l.push(s);localStorage.setItem("cw_sedes",JSON.stringify(l))}}
+function allSedes(){return[...SEDES,...getCSedes()].filter(s=>!isRetiredSede(s)).sort((a,b)=>a.localeCompare(b))}
 function getProvs(){try{return JSON.parse(localStorage.getItem("cw_provs")||"[]")}catch{return[]}}
 function saveProv(n){if(!n)return;const l=getProvs();if(!l.includes(n)){l.push(n);localStorage.setItem("cw_provs",JSON.stringify(l))}}
 function getCurUser(){try{return JSON.parse(localStorage.getItem("cw_user"))}catch{return null}}

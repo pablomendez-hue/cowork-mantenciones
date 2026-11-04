@@ -4,7 +4,7 @@ import { INVENTARIO_EXCEL_LATEST, INVENTARIO_EXCEL_TREND } from "./inventario_hi
 import { fetchInventario, saveInventarioRegistro, updateInventarioRecord, deleteInventarioRecord } from "./inventario_sheets.js";
 import { upsertConfig, fetchConfig, parseProdCat, parseBreakeven, parseProdGlobal, parseSedeCM } from "./config_sheets.js";
 import { USERS, today } from "./constants.js";
-import { canonicalSede } from "./sedes.js";
+import { canonicalSede, isRetiredSede } from "./sedes.js";
 
 // ── Shared styles ────────────────────────────────────────────────────────────
 const I = { appearance:"none",WebkitAppearance:"none",background:"#fff",border:"1px solid #e5e5e5",borderRadius:7,padding:"8px 11px",fontSize:12,color:"#1a1a1a",width:"100%",fontFamily:"'Sora',sans-serif",outline:"none",boxSizing:"border-box" };
@@ -12,10 +12,10 @@ const BP = { background:"#1a1a1a",color:"#fff",border:"none",borderRadius:7,padd
 const FL = { fontSize:10,fontWeight:500,color:"#a3a3a3",display:"block",marginBottom:4,textTransform:"uppercase",letterSpacing:"0.04em" };
 
 // ── localStorage ─────────────────────────────────────────────────────────────
-function getSedeCMMap() { try { const map=JSON.parse(localStorage.getItem("cw_sede_cm")||"{}"); return Object.fromEntries(Object.entries(map).map(([email,sede])=>[email,canonicalSede(sede)])); } catch { return {}; } }
+function getSedeCMMap() { try { const map=JSON.parse(localStorage.getItem("cw_sede_cm")||"{}"); return Object.fromEntries(Object.entries(map).map(([email,sede])=>[email,canonicalSede(sede)]).filter(([,sede])=>!isRetiredSede(sede))); } catch { return {}; } }
 function setSedeCMMap(m) { localStorage.setItem("cw_sede_cm",JSON.stringify(m)); }
 function getCMSede(email) { return getSedeCMMap()[email.toLowerCase()]||null; }
-function getCached() { try { return JSON.parse(localStorage.getItem("cw_inv_cache")||"[]").map(r=>({...r,sede:canonicalSede(r.sede)})); } catch { return []; } }
+function getCached() { try { return JSON.parse(localStorage.getItem("cw_inv_cache")||"[]").map(r=>({...r,sede:canonicalSede(r.sede)})).filter(r=>!isRetiredSede(r.sede)); } catch { return []; } }
 function setCached(d) { localStorage.setItem("cw_inv_cache",JSON.stringify(d)); }
 // Extra products per sede (added by CM users)
 function getExtraProds(sede) { try { const all=JSON.parse(localStorage.getItem("cw_extra_prods")||"{}"); return [...(all[sede]||[]),...(sede==="Nido 9"?all.Monjitas||[]:[])].filter((p,i,arr)=>arr.findIndex(q=>q.producto===p.producto)===i); } catch { return []; } }

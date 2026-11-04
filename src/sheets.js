@@ -1,4 +1,4 @@
-import { canonicalSede } from "./sedes.js";
+import { canonicalSede, isRetiredSede } from "./sedes.js";
 
 const SHEET_ID = import.meta.env.VITE_GOOGLE_SHEET_ID;
 const API_KEY = import.meta.env.VITE_GOOGLE_API_KEY;
@@ -36,7 +36,7 @@ export async function fetchAllTickets() {
   const data = await res.json();
   const rows = data.values || [];
   if (rows.length <= 1) return [];
-  return rows.slice(1).map(rowToItem).filter((item) => item.id && item.desc);
+  return rows.slice(1).map(rowToItem).filter((item) => item.id && item.desc && !isRetiredSede(item.sede));
 }
 async function callAppsScript(action, payload) {
   const res = await fetch(APPS_SCRIPT_URL, { method: "POST", headers: { "Content-Type": "text/plain" }, body: JSON.stringify({ action, ...payload }) });
