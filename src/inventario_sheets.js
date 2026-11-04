@@ -35,13 +35,14 @@ export async function fetchInventario() {
 }
 
 async function callAppsScript(action, payload) {
-  const res = await fetch(APPS_SCRIPT_URL, {
+  const res = await fetch("/api/sheets-write", {
     method: "POST",
-    headers: { "Content-Type": "text/plain" },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ action, sheet: SHEET_NAME, ...payload }),
   });
-  if (!res.ok) throw new Error("Apps Script error: " + res.status);
-  return res.json();
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || data.success === false) throw new Error(data.error || "Apps Script error: " + res.status);
+  return data;
 }
 
 export async function saveInventarioRegistro(records) {
