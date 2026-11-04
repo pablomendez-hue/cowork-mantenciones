@@ -526,9 +526,24 @@ function InventarioAdmin({ records, user, conn, onSaved, catOverrides={}, breake
   const [activeSedeCol, setActiveSedeCol] = useState(null);
   const [previewCM, setPreviewCM] = useState(false);
   const [previewSede, setPreviewSede] = useState(INVENTARIO_SEDES[0]);
+  const historyDetailRef = useRef(null);
 
   const latestMap = useMemo(()=>buildLatestMap(records),[records]);
   const trendMap  = useMemo(()=>buildTrendMap(records),[records]);
+  const lastUpdateBySede = useMemo(()=>{
+    const dates={};
+    for(const record of records){
+      if(!record.sede||!record.fecha)continue;
+      const fecha=normalizeDate(record.fecha)||record.fecha;
+      if(!dates[record.sede]||fecha>dates[record.sede])dates[record.sede]=fecha;
+    }
+    return dates;
+  },[records]);
+
+  const openSedeHistory=sede=>{
+    setPreviewSede(sede);
+    setTimeout(()=>historyDetailRef.current?.scrollIntoView({behavior:"smooth",block:"start"}),0);
+  };
 
   const alertas = useMemo(()=>{
     let rojo=0,amarillo=0;
@@ -647,17 +662,31 @@ function InventarioAdmin({ records, user, conn, onSaved, catOverrides={}, breake
           </div>
         )}
         {tab==="historial"&&(
-          <div style={{ flex:1,overflowY:"auto",padding:"20px 24px" }}>
+          <div style={{ flex:1,overflowY:"auto",padding:"16px 20px" }}>
             <div style={{ marginBottom:16 }}>
-              <label style={FL}>Sede</label>
-              <select value={previewSede} onChange={e=>setPreviewSede(e.target.value)} style={{ ...I,width:220,cursor:"pointer" }}>
-                {INVENTARIO_SEDES.map(s=><option key={s} value={s}>{s}</option>)}
-              </select>
+              <div style={{ fontSize:10,fontWeight:600,color:"#a3a3a3",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:8 }}>Sedes activas · última actualización</div>
+              <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(150px,1fr))",gap:6 }}>
+                {INVENTARIO_SEDES.map(sede=>{
+                  const active=previewSede===sede;
+                  const fecha=lastUpdateBySede[sede];
+                  return <button key={sede} onClick={()=>openSedeHistory(sede)} style={{
+                    padding:"8px 10px",textAlign:"left",cursor:"pointer",borderRadius:7,
+                    border:active?"1px solid #1a1a1a":"1px solid #e5e5e5",
+                    background:active?"#1a1a1a":"#fff",fontFamily:"'Sora',sans-serif"
+                  }}>
+                    <div style={{ fontSize:10,fontWeight:600,color:active?"#fff":"#404040",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis" }}>{sede}</div>
+                    <div style={{ fontSize:9,color:active?"#d4d4d4":fecha?"#737373":"#b3b3b3",marginTop:3,fontFamily:"'JetBrains Mono',monospace" }}>{fecha?fdateFull(fecha):"Sin registros"}</div>
+                  </button>;
+                })}
+              </div>
             </div>
-            <HistorialSede sede={previewSede} records={records} latestMap={latestMap}
-              onRecordUpdate={r=>{ const upd=records.map(x=>x.id===r.id?r:x); onSaved(upd); setCached(upd); }}
-              canDelete={true}
-              onRecordDelete={id=>{ const upd=records.filter(x=>x.id!==id); onSaved(upd); setCached(upd); }}/>
+            <div ref={historyDetailRef}>
+              <div style={{ fontSize:13,fontWeight:700,color:"#262626",marginBottom:10 }}>{previewSede}</div>
+              <HistorialSede sede={previewSede} records={records} latestMap={latestMap}
+                onRecordUpdate={r=>{ const upd=records.map(x=>x.id===r.id?r:x); onSaved(upd); setCached(upd); }}
+                canDelete={true}
+                onRecordDelete={id=>{ const upd=records.filter(x=>x.id!==id); onSaved(upd); setCached(upd); }}/>
+            </div>
           </div>
         )}
         {tab==="directorio"&&<DirectorioCM conn={conn} catOverrides={catOverrides} onCatOverride={onCatOverride} extraProds={extraProds} onAddProd={onAddProd} onRemoveProd={onRemoveProd} deletedProds={deletedProds} onDeleteCatalogProd={onDeleteCatalogProd}/>}
