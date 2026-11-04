@@ -476,23 +476,44 @@ function ListaCompras({ latestMap, extraProds=[], deletedProds=new Set() }) {
     return out.sort((a,b)=>a.sede.localeCompare(b.sede)||a.producto.localeCompare(b.producto));
   },[latestMap,extraProds,deletedProds]);
 
-  return <div style={{ flex:1,overflowY:"auto",padding:"20px 24px",fontFamily:"'Sora',sans-serif" }}>
-    <div style={{ display:"flex",alignItems:"flex-end",justifyContent:"space-between",marginBottom:14 }}>
+  const downloadTxt=()=>{
+    const clean=v=>String(v??"").replace(/[\t\r\n]+/g," ");
+    const header=["Tipo de producto","Última actualización","Actual","Mínimo","A comprar","Sede"];
+    const lines=[header,...rows.map(r=>[r.producto,r.fecha?fdateFull(r.fecha):"Sin registro",r.actual,r.min,r.comprar,r.sede])];
+    const blob=new Blob(["\uFEFF"+lines.map(line=>line.map(clean).join("\t")).join("\r\n")],{type:"text/plain;charset=utf-8"});
+    const url=URL.createObjectURL(blob);
+    const link=document.createElement("a");
+    link.href=url;
+    link.download=`lista-compras-${today()}.txt`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  return <div style={{ flex:1,overflowY:"auto",padding:"14px 20px",fontFamily:"'Sora',sans-serif" }}>
+    <div style={{ display:"flex",alignItems:"flex-end",justifyContent:"space-between",marginBottom:10 }}>
       <div><div style={{ fontSize:15,fontWeight:700 }}>Lista de compras</div><div style={{ fontSize:10,color:"#a3a3a3",marginTop:3 }}>Insumos bajo el stock mínimo, ordenados por sede.</div></div>
-      <div style={{ fontSize:11,color:"#b45309",background:"#fffbeb",border:"1px solid #fde68a",borderRadius:6,padding:"5px 9px" }}><strong>{rows.length}</strong> pendientes</div>
+      <div style={{ display:"flex",alignItems:"center",gap:7 }}>
+        <button onClick={downloadTxt} disabled={!rows.length} style={{ ...BP,padding:"5px 10px",fontSize:10,opacity:rows.length?1:0.4 }}>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 3v12"/><polyline points="7 10 12 15 17 10"/><path d="M5 21h14"/></svg>
+          Descargar TXT
+        </button>
+        <div style={{ fontSize:10,color:"#b45309",background:"#fffbeb",border:"1px solid #fde68a",borderRadius:6,padding:"4px 8px" }}><strong>{rows.length}</strong> pendientes</div>
+      </div>
     </div>
     <div style={{ background:"#fff",border:"1px solid #e5e5e5",borderRadius:10,overflow:"hidden" }}>
-      <table style={{ width:"100%",borderCollapse:"collapse",fontSize:11 }}>
+      <table style={{ width:"100%",borderCollapse:"collapse",fontSize:10 }}>
         <thead><tr style={{ background:"#fafafa",borderBottom:"1px solid #e5e5e5" }}>
-          {["Tipo de producto","Última actualización","Actual","Mínimo","A comprar","Sede"].map((h,i)=><th key={h} style={{ padding:"10px 14px",textAlign:i===0||i===1||i===5?"left":"center",fontSize:9,color:"#a3a3a3",textTransform:"uppercase",letterSpacing:"0.05em",fontWeight:600 }}>{h}</th>)}
+          {["Tipo de producto","Última actualización","Actual","Mínimo","A comprar","Sede"].map((h,i)=><th key={h} style={{ padding:"6px 10px",textAlign:i===0||i===1||i===5?"left":"center",fontSize:8,color:"#a3a3a3",textTransform:"uppercase",letterSpacing:"0.05em",fontWeight:600 }}>{h}</th>)}
         </tr></thead>
         <tbody>{rows.length?rows.map((r,i)=><tr key={`${r.sede}||${r.producto}`} style={{ borderBottom:i<rows.length-1?"1px solid #f5f5f5":"none" }}>
-          <td style={{ padding:"10px 14px",fontWeight:500,color:"#262626" }}>{r.producto}</td>
-          <td style={{ padding:"10px 14px",fontFamily:"'JetBrains Mono',monospace",color:r.fecha?"#525252":"#a3a3a3",whiteSpace:"nowrap" }}>{fdateFull(r.fecha)}</td>
-          <td style={{ padding:"10px 14px",textAlign:"center",fontFamily:"'JetBrains Mono',monospace",color:r.actual<=0?"#dc2626":"#737373" }}>{r.actual}</td>
-          <td style={{ padding:"10px 14px",textAlign:"center",fontFamily:"'JetBrains Mono',monospace",color:"#737373" }}>{r.min}</td>
-          <td style={{ padding:"10px 14px",textAlign:"center" }}><span style={{ display:"inline-block",minWidth:30,padding:"3px 8px",borderRadius:5,background:"#fef2f2",color:"#dc2626",fontFamily:"'JetBrains Mono',monospace",fontWeight:700 }}>{r.comprar}</span></td>
-          <td style={{ padding:"10px 14px",color:"#525252" }}>{r.sede}</td>
+          <td style={{ padding:"5px 10px",fontWeight:500,color:"#262626" }}>{r.producto}</td>
+          <td style={{ padding:"5px 10px",fontFamily:"'JetBrains Mono',monospace",color:r.fecha?"#525252":"#a3a3a3",whiteSpace:"nowrap" }}>{fdateFull(r.fecha)}</td>
+          <td style={{ padding:"5px 10px",textAlign:"center",fontFamily:"'JetBrains Mono',monospace",color:r.actual<=0?"#dc2626":"#737373" }}>{r.actual}</td>
+          <td style={{ padding:"5px 10px",textAlign:"center",fontFamily:"'JetBrains Mono',monospace",color:"#737373" }}>{r.min}</td>
+          <td style={{ padding:"5px 10px",textAlign:"center" }}><span style={{ display:"inline-block",minWidth:28,padding:"2px 7px",borderRadius:4,background:"#fef2f2",color:"#dc2626",fontFamily:"'JetBrains Mono',monospace",fontWeight:700 }}>{r.comprar}</span></td>
+          <td style={{ padding:"5px 10px",color:"#525252" }}>{r.sede}</td>
         </tr>):<tr><td colSpan="6" style={{ padding:30,textAlign:"center",color:"#a3a3a3" }}>No hay insumos pendientes de compra.</td></tr>}</tbody>
       </table>
     </div>
