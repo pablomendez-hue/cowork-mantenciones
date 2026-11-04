@@ -4,7 +4,7 @@ const SHEET_ID = import.meta.env.VITE_GOOGLE_SHEET_ID;
 const API_KEY = import.meta.env.VITE_GOOGLE_API_KEY;
 const APPS_SCRIPT_URL = import.meta.env.VITE_APPS_SCRIPT_URL;
 const SHEET_NAME = "Inventario";
-const RANGE = SHEET_NAME + "!A:H";
+const RECENT_ROWS = 6000;
 
 // Row: id | sede | proveedor | producto | fecha | cantidad | tipo | registrado_por
 function rowToRecord(row) {
@@ -25,13 +25,22 @@ function recordToRow(r) {
 }
 
 export async function fetchInventario() {
-  const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${RANGE}?key=${API_KEY}&t=${Date.now()}`;
+  // La hoja acumula decenas de miles de registros. Primero se consulta solo
+  // la columna de IDs para ubicar el último registro y después se descarga el
+  // tramo reciente que usa la app. Esto evita errores por respuestas enormes.
+  const idsUrl = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${SHEET_NAME}!A:A?key=${API_KEY}&t=${Date.now()}`;
+  const idsRes = await fetch(idsUrl, { cache: "no-store" });
+  if (!idsRes.ok) throw new Error("Sheets API error: " + idsRes.status);
+  const idsData = await idsRes.json();
+  const lastRow = Math.max(2, (idsData.values || []).length);
+  const startRow = Math.max(2, lastRow - RECENT_ROWS + 1);
+  const range = `${SHEET_NAME}!A${startRow}:H${lastRow}`;
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${range}?key=${API_KEY}&t=${Date.now()}`;
   const res = await fetch(url, { cache: "no-store" });
   if (!res.ok) throw new Error("Sheets API error: " + res.status);
   const data = await res.json();
   const rows = data.values || [];
-  if (rows.length <= 1) return [];
-  return rows.slice(1).map(rowToRecord).filter(r => r.id && r.sede);
+  return rows.map(rowToRecord).filter(r => r.id && r.sede);
 }
 
 async function callAppsScript(action, payload) {
@@ -70,12 +79,10 @@ export async function saveInventarioRegistro(records) {
       headers: { "Content-Type": "text/plain" },
       body: JSON.stringify({ action: "createBatch", sheet: SHEET_NAME, rows }),
     });
-    await new Promise(resolve => setTimeout(resolve, 1800));
-    const current = await fetchInventario();
-    if (current.filter(record => expectedIds.has(String(record.id))).length !== expectedIds.size) {
-      throw firstError;
-    }
-    return { success: true, verified: true };
+    // En modo no-cors el navegador no permite leer la respuesta, pero sí
+    // confirma que la solicitud fue enviada. Se marca como pendiente para que
+    // la próxima sincronización la confirme sin mostrar un error falso.
+    return { success: true, pending: true };
   }
 }
 
