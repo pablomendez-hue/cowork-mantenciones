@@ -31,6 +31,12 @@ function fdate(d) {
   if (isNaN(dt.getTime())) return d;
   return dt.toLocaleDateString("es-CL",{day:"2-digit",month:"short"});
 }
+function fdateFull(d) {
+  if (!d) return "Sin registro";
+  const dt = new Date(d+"T12:00:00");
+  if (isNaN(dt.getTime())) return d;
+  return dt.toLocaleDateString("es-CL",{day:"2-digit",month:"2-digit",year:"numeric"});
+}
 function daysAgo(d) {
   if (!d) return null;
   const dt = new Date(d+"T12:00:00");
@@ -464,7 +470,7 @@ function ListaCompras({ latestMap, extraProds=[], deletedProds=new Set() }) {
         const entry=getLatestByProd(sede,p.producto,latestMap);
         const actual=Number(entry?.cantidad??0);
         const comprar=Math.max(0,min-actual);
-        if(comprar>0)out.push({producto:p.producto,actual,min,comprar,sede});
+        if(comprar>0)out.push({producto:p.producto,fecha:entry?.fecha||"",actual,min,comprar,sede});
       }
     }
     return out.sort((a,b)=>a.sede.localeCompare(b.sede)||a.producto.localeCompare(b.producto));
@@ -478,15 +484,16 @@ function ListaCompras({ latestMap, extraProds=[], deletedProds=new Set() }) {
     <div style={{ background:"#fff",border:"1px solid #e5e5e5",borderRadius:10,overflow:"hidden" }}>
       <table style={{ width:"100%",borderCollapse:"collapse",fontSize:11 }}>
         <thead><tr style={{ background:"#fafafa",borderBottom:"1px solid #e5e5e5" }}>
-          {["Tipo de producto","Actual","Mínimo","A comprar","Sede"].map((h,i)=><th key={h} style={{ padding:"10px 14px",textAlign:i===0||i===4?"left":"center",fontSize:9,color:"#a3a3a3",textTransform:"uppercase",letterSpacing:"0.05em",fontWeight:600 }}>{h}</th>)}
+          {["Tipo de producto","Última actualización","Actual","Mínimo","A comprar","Sede"].map((h,i)=><th key={h} style={{ padding:"10px 14px",textAlign:i===0||i===1||i===5?"left":"center",fontSize:9,color:"#a3a3a3",textTransform:"uppercase",letterSpacing:"0.05em",fontWeight:600 }}>{h}</th>)}
         </tr></thead>
         <tbody>{rows.length?rows.map((r,i)=><tr key={`${r.sede}||${r.producto}`} style={{ borderBottom:i<rows.length-1?"1px solid #f5f5f5":"none" }}>
           <td style={{ padding:"10px 14px",fontWeight:500,color:"#262626" }}>{r.producto}</td>
+          <td style={{ padding:"10px 14px",fontFamily:"'JetBrains Mono',monospace",color:r.fecha?"#525252":"#a3a3a3",whiteSpace:"nowrap" }}>{fdateFull(r.fecha)}</td>
           <td style={{ padding:"10px 14px",textAlign:"center",fontFamily:"'JetBrains Mono',monospace",color:r.actual<=0?"#dc2626":"#737373" }}>{r.actual}</td>
           <td style={{ padding:"10px 14px",textAlign:"center",fontFamily:"'JetBrains Mono',monospace",color:"#737373" }}>{r.min}</td>
           <td style={{ padding:"10px 14px",textAlign:"center" }}><span style={{ display:"inline-block",minWidth:30,padding:"3px 8px",borderRadius:5,background:"#fef2f2",color:"#dc2626",fontFamily:"'JetBrains Mono',monospace",fontWeight:700 }}>{r.comprar}</span></td>
           <td style={{ padding:"10px 14px",color:"#525252" }}>{r.sede}</td>
-        </tr>):<tr><td colSpan="5" style={{ padding:30,textAlign:"center",color:"#a3a3a3" }}>No hay insumos pendientes de compra.</td></tr>}</tbody>
+        </tr>):<tr><td colSpan="6" style={{ padding:30,textAlign:"center",color:"#a3a3a3" }}>No hay insumos pendientes de compra.</td></tr>}</tbody>
       </table>
     </div>
   </div>;
