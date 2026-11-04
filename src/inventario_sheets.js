@@ -35,19 +35,48 @@ export async function fetchInventario() {
 }
 
 async function callAppsScript(action, payload) {
-  const res = await fetch("/api/sheets-write", {
+  const res = await fetch(APPS_SCRIPT_URL, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "text/plain" },
     body: JSON.stringify({ action, sheet: SHEET_NAME, ...payload }),
   });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok || data.success === false) throw new Error(data.error || "Apps Script error: " + res.status);
-  return data;
+  if (!res.ok) throw new Error("Apps Script error: " + res.status);
+  return res.json();
 }
 
 export async function saveInventarioRegistro(records) {
   const rows = records.map(recordToRow);
-  return callAppsScript("createBatch", { rows });
+  try {
+    const result = await callAppsScript("createBatch", { rows });
+    if (result?.success === false) throw new Error(result.error || "Google Sheets rechazó el guardado");
+    return result;
+  } catch (firstError) {
+    // Apps Script puede completar la escritura y luego fallar al devolver su
+    // respuesta por el redirect/CORS de Google. Verificar antes de reintentar
+    // evita duplicar registros que ya llegaron a la planilla.
+    const expectedIds = new Set(records.map(record => String(record.id)));
+    try {
+      const current = await fetchInventario();
+      if (current.filter(record => expectedIds.has(String(record.id))).length === expectedIds.size) {
+        return { success: true, verified: true };
+      }
+    } catch {}
+
+    // Reintento compatible con navegadores que bloquean la respuesta
+    // redirigida de Apps Script. Luego se confirma contra Google Sheets.
+    await fetch(APPS_SCRIPT_URL, {
+      method: "POST",
+      mode: "no-cors",
+      headers: { "Content-Type": "text/plain" },
+      body: JSON.stringify({ action: "createBatch", sheet: SHEET_NAME, rows }),
+    });
+    await new Promise(resolve => setTimeout(resolve, 1800));
+    const current = await fetchInventario();
+    if (current.filter(record => expectedIds.has(String(record.id))).length !== expectedIds.size) {
+      throw firstError;
+    }
+    return { success: true, verified: true };
+  }
 }
 
 export async function updateInventarioRecord(record) {
