@@ -31,6 +31,12 @@ function fdate(d) {
   if (isNaN(dt.getTime())) return d;
   return dt.toLocaleDateString("es-CL",{day:"2-digit",month:"short"});
 }
+function fdateYear(d) {
+  if (!d) return "—";
+  const dt = new Date(d+"T12:00:00");
+  if (isNaN(dt.getTime())) return d;
+  return dt.toLocaleDateString("es-CL",{day:"2-digit",month:"short",year:"numeric"});
+}
 function fdateFull(d) {
   if (!d) return "Sin registro";
   const dt = new Date(d+"T12:00:00");
@@ -66,24 +72,29 @@ function canonicalProductName(name) {
 function buildLatestMap(liveRecords) {
   const map = {};
   for (const [k,v] of Object.entries(INVENTARIO_EXCEL_LATEST)) {
-    map[k] = { fecha: normalizeDate(v.fecha), cantidad: v.cantidad };
+    const fecha=normalizeDate(v.fecha);
+    if(fecha&&fecha<=today())map[k] = { fecha, cantidad: v.cantidad };
   }
   for (const r of liveRecords) {
     if (r.tipo !== "stock") continue;
+    const fecha=normalizeDate(r.fecha);
+    if(!fecha||fecha>today())continue;
     const key = `${r.sede}||${r.proveedor}||${canonicalProductName(r.producto)}`;
-    if (!map[key] || r.fecha >= map[key].fecha) map[key] = { fecha:r.fecha, cantidad:r.cantidad };
+    if (!map[key] || fecha >= map[key].fecha) map[key] = { fecha, cantidad:r.cantidad };
   }
   return map;
 }
 
 function buildTrendMap(liveRecords) {
   const map = {};
-  for (const [k,v] of Object.entries(INVENTARIO_EXCEL_TREND)) map[k] = v.map(([f,q])=>[normalizeDate(f),q]);
+  for (const [k,v] of Object.entries(INVENTARIO_EXCEL_TREND)) map[k] = v.map(([f,q])=>[normalizeDate(f),q]).filter(([f])=>f&&f<=today());
   for (const r of liveRecords) {
     if (r.tipo !== "stock") continue;
+    const fecha=normalizeDate(r.fecha);
+    if(!fecha||fecha>today())continue;
     const key = `${r.sede}||${r.proveedor}||${canonicalProductName(r.producto)}`;
     if (!map[key]) map[key] = [];
-    map[key].push([r.fecha, r.cantidad]);
+    map[key].push([fecha, r.cantidad]);
   }
   // Deduplicar por fecha (live wins over Excel), ordenar asc, keepear las últimas 12
   for (const k of Object.keys(map)) {
@@ -823,7 +834,7 @@ function FormRegistro({ sede, records=[], user, conn, onSaved, isPreview, breake
   const trendMap  = useMemo(()=>buildTrendMap(records),[records]);
   const isAdmin = user?.role==="admin"||user?.role==="ops";
   const lastSedeUpdate = useMemo(()=>{
-    const sedeRecords = records.filter(r=>r.sede===sede && r.fecha);
+    const sedeRecords = records.map(r=>({...r,fecha:normalizeDate(r.fecha)})).filter(r=>r.sede===sede && r.fecha && r.fecha<=today());
     if (!sedeRecords.length) return null;
     const lastDate = sedeRecords.reduce((max,r)=>r.fecha>max?r.fecha:max, "");
     const lastRecords = sedeRecords.filter(r=>r.fecha===lastDate);
@@ -986,7 +997,7 @@ function FormRegistro({ sede, records=[], user, conn, onSaved, isPreview, breake
         </div>
         <div>
           <div style={{ fontSize:11,fontWeight:700 }}>
-            {lastSedeUpdate ? `Último registro guardado en ${sede}: ${fdate(lastSedeUpdate.fecha)}` : `Aún no hay registros guardados para ${sede}`}
+            {lastSedeUpdate ? `Último registro guardado en ${sede}: ${fdateYear(lastSedeUpdate.fecha)}` : `Aún no hay registros guardados para ${sede}`}
           </div>
           {lastSedeUpdate&&<div style={{ fontSize:9,marginTop:2,color:"#4d7c5b" }}>
             {lastSedeUpdate.count} insumo{lastSedeUpdate.count!==1?"s":""} actualizado{lastSedeUpdate.count!==1?"s":""}
@@ -1886,4 +1897,3 @@ export default function Inventario({ user, conn }) {
     ? <InventarioAdmin records={records} user={user} conn={conn} onSaved={setRecords} catOverrides={catOverrides} breakevenMap={breakevenMap} onCatOverride={onCatOverride} onBreakevenChange={onBreakevenChange} extraProds={extraProds} onAddProd={onAddProd} onRemoveProd={onRemoveProd} deletedProds={deletedProds} onDeleteCatalogProd={onDeleteCatalogProd} onSync={handleSync} syncing={syncing} syncMsg={syncMsg}/>
     : <InventarioCM user={user} records={records} onSaved={setRecords} conn={conn} breakevenMap={breakevenMap} globalExtraProds={extraProds} onAddProd={onAddProd} deletedProds={deletedProds} onSync={handleSync} syncing={syncing} syncMsg={syncMsg} cmSede={cmSede}/>;
 }
-
