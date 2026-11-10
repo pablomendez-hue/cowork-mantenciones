@@ -458,7 +458,21 @@ function MatrixTable({ latestMap, filtCat, onSedeClick, activeSedeCol, catOverri
 // ADMIN VIEW
 // ══════════════════════════════════════════════════════════════════════════════
 function ListaCompras({ latestMap, extraProds=[], deletedProds=new Set() }) {
-  const rows = useMemo(()=>{
+  const [sedeFilter,setSedeFilter] = useState("");
+
+  const latestDateBySede = useMemo(()=>{
+    const dates={};
+    const activeSedes=new Set(INVENTARIO_SEDES);
+    for(const [key,entry] of Object.entries(latestMap)){
+      const [sede]=key.split("||");
+      const fecha=normalizeDate(entry?.fecha);
+      if(!activeSedes.has(sede)||!fecha)continue;
+      if(!dates[sede]||fecha>dates[sede])dates[sede]=fecha;
+    }
+    return dates;
+  },[latestMap]);
+
+  const allRows = useMemo(()=>{
     const out=[];
     for(const sede of INVENTARIO_SEDES){
       const prods=[...(INVENTARIO_CATALOG[sede]||[]),...extraProds];
@@ -468,13 +482,20 @@ function ListaCompras({ latestMap, extraProds=[], deletedProds=new Set() }) {
         seen.add(p.producto);
         const min=Number(getMinStockByProd(sede,p.producto)??p.min_stock??0);
         const entry=getLatestByProd(sede,p.producto,latestMap);
-        const actual=Number(entry?.cantidad??0);
+        const entryDate=normalizeDate(entry?.fecha);
+        // La lista solo representa el último inventario completo de cada sede.
+        // Sin registro, o con un registro anterior a esa actualización, el insumo se omite.
+        if(!entryDate||entryDate!==latestDateBySede[sede])continue;
+        const actual=Number(entry.cantidad);
+        if(!Number.isFinite(actual))continue;
         const comprar=Math.max(0,min-actual);
-        if(comprar>0)out.push({producto:p.producto,fecha:entry?.fecha||"",actual,min,comprar,sede});
+        if(comprar>0)out.push({producto:p.producto,fecha:entryDate,actual,min,comprar,sede});
       }
     }
     return out.sort((a,b)=>a.sede.localeCompare(b.sede)||a.producto.localeCompare(b.producto));
-  },[latestMap,extraProds,deletedProds]);
+  },[latestMap,extraProds,deletedProds,latestDateBySede]);
+
+  const rows = useMemo(()=>sedeFilter?allRows.filter(r=>r.sede===sedeFilter):allRows,[allRows,sedeFilter]);
 
   const downloadTxt=()=>{
     const clean=v=>String(v??"").replace(/[\t\r\n]+/g," ");
@@ -493,8 +514,12 @@ function ListaCompras({ latestMap, extraProds=[], deletedProds=new Set() }) {
 
   return <div style={{ flex:1,overflowY:"auto",padding:"14px 20px",fontFamily:"'Sora',sans-serif" }}>
     <div style={{ display:"flex",alignItems:"flex-end",justifyContent:"space-between",marginBottom:10 }}>
-      <div><div style={{ fontSize:15,fontWeight:700 }}>Lista de compras</div><div style={{ fontSize:10,color:"#a3a3a3",marginTop:3 }}>Insumos bajo el stock mínimo, ordenados por sede.</div></div>
+      <div><div style={{ fontSize:15,fontWeight:700 }}>Lista de compras</div><div style={{ fontSize:10,color:"#a3a3a3",marginTop:3 }}>Insumos de la última actualización bajo el stock mínimo, ordenados por sede.</div></div>
       <div style={{ display:"flex",alignItems:"center",gap:7 }}>
+        <select value={sedeFilter} onChange={e=>setSedeFilter(e.target.value)} aria-label="Filtrar lista de compras por sede" style={{ ...I,width:180,padding:"5px 9px",fontSize:10,cursor:"pointer" }}>
+          <option value="">Todas las sedes</option>
+          {INVENTARIO_SEDES.map(sede=><option key={sede} value={sede}>{sede}</option>)}
+        </select>
         <button onClick={downloadTxt} disabled={!rows.length} style={{ ...BP,padding:"5px 10px",fontSize:10,opacity:rows.length?1:0.4 }}>
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 3v12"/><polyline points="7 10 12 15 17 10"/><path d="M5 21h14"/></svg>
           Descargar TXT
@@ -514,7 +539,7 @@ function ListaCompras({ latestMap, extraProds=[], deletedProds=new Set() }) {
           <td style={{ padding:"5px 10px",textAlign:"center",fontFamily:"'JetBrains Mono',monospace",color:"#737373" }}>{r.min}</td>
           <td style={{ padding:"5px 10px",textAlign:"center" }}><span style={{ display:"inline-block",minWidth:28,padding:"2px 7px",borderRadius:4,background:"#fef2f2",color:"#dc2626",fontFamily:"'JetBrains Mono',monospace",fontWeight:700 }}>{r.comprar}</span></td>
           <td style={{ padding:"5px 10px",color:"#525252" }}>{r.sede}</td>
-        </tr>):<tr><td colSpan="6" style={{ padding:30,textAlign:"center",color:"#a3a3a3" }}>No hay insumos pendientes de compra.</td></tr>}</tbody>
+        </tr>):<tr><td colSpan="6" style={{ padding:30,textAlign:"center",color:"#a3a3a3" }}>{sedeFilter?`No hay insumos pendientes de compra en ${sedeFilter}.`:"No hay insumos pendientes de compra."}</td></tr>}</tbody>
       </table>
     </div>
   </div>;
