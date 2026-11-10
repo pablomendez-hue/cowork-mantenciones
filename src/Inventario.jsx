@@ -4,7 +4,7 @@ import { INVENTARIO_EXCEL_LATEST, INVENTARIO_EXCEL_TREND } from "./inventario_hi
 import { fetchInventario, saveInventarioRegistro, updateInventarioRecord, deleteInventarioRecord } from "./inventario_sheets.js";
 import { upsertConfig, fetchConfig, parseProdCat, parseBreakeven, parseProdGlobal, parseSedeCM } from "./config_sheets.js";
 import { USERS, today } from "./constants.js";
-import { canonicalSede, isRetiredSede } from "./sedes.js";
+import { canonicalSede } from "./sedes.js";
 
 // ── Shared styles ────────────────────────────────────────────────────────────
 const I = { appearance:"none",WebkitAppearance:"none",background:"#fff",border:"1px solid #e5e5e5",borderRadius:7,padding:"8px 11px",fontSize:12,color:"#1a1a1a",width:"100%",fontFamily:"'Sora',sans-serif",outline:"none",boxSizing:"border-box" };
@@ -12,10 +12,10 @@ const BP = { background:"#1a1a1a",color:"#fff",border:"none",borderRadius:7,padd
 const FL = { fontSize:10,fontWeight:500,color:"#a3a3a3",display:"block",marginBottom:4,textTransform:"uppercase",letterSpacing:"0.04em" };
 
 // ── localStorage ─────────────────────────────────────────────────────────────
-function getSedeCMMap() { try { const map=JSON.parse(localStorage.getItem("cw_sede_cm")||"{}"); return Object.fromEntries(Object.entries(map).map(([email,sede])=>[email,canonicalSede(sede)]).filter(([,sede])=>!isRetiredSede(sede))); } catch { return {}; } }
+function getSedeCMMap() { try { const map=JSON.parse(localStorage.getItem("cw_sede_cm")||"{}"); return Object.fromEntries(Object.entries(map).map(([email,sede])=>[email,canonicalSede(sede)])); } catch { return {}; } }
 function setSedeCMMap(m) { localStorage.setItem("cw_sede_cm",JSON.stringify(m)); }
 function getCMSede(email) { return getSedeCMMap()[email.toLowerCase()]||null; }
-function getCached() { try { return JSON.parse(localStorage.getItem("cw_inv_cache")||"[]").map(r=>({...r,sede:canonicalSede(r.sede)})).filter(r=>!isRetiredSede(r.sede)); } catch { return []; } }
+function getCached() { try { return JSON.parse(localStorage.getItem("cw_inv_cache")||"[]").map(r=>({...r,sede:canonicalSede(r.sede)})); } catch { return []; } }
 function setCached(d) { localStorage.setItem("cw_inv_cache",JSON.stringify(d)); }
 // Extra products per sede (added by CM users)
 function getExtraProds(sede) { try { const all=JSON.parse(localStorage.getItem("cw_extra_prods")||"{}"); return [...(all[sede]||[]),...(sede==="Nido 9"?all.Monjitas||[]:[])].filter((p,i,arr)=>arr.findIndex(q=>q.producto===p.producto)===i); } catch { return []; } }
@@ -30,12 +30,6 @@ function fdate(d) {
   const dt = new Date(d+"T12:00:00");
   if (isNaN(dt.getTime())) return d;
   return dt.toLocaleDateString("es-CL",{day:"2-digit",month:"short"});
-}
-function fdateFull(d) {
-  if (!d) return "Sin registro";
-  const dt = new Date(d+"T12:00:00");
-  if (isNaN(dt.getTime())) return d;
-  return dt.toLocaleDateString("es-CL",{day:"2-digit",month:"2-digit",year:"numeric"});
 }
 function daysAgo(d) {
   if (!d) return null;
@@ -54,6 +48,15 @@ function normalizeDate(d) {
   return d;
 }
 
+// Unifica errores de escritura conocidos sin cambiar el nombre histórico
+// principal que ya usan el catálogo y los reportes.
+function canonicalProductName(name) {
+  const value=String(name||"").trim();
+  const key=value.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]/g,"");
+  const aliases={ lysoform:"Lisoform",lisoform:"Lisoform" };
+  return aliases[key]||value;
+}
+
 function buildLatestMap(liveRecords) {
   const map = {};
   for (const [k,v] of Object.entries(INVENTARIO_EXCEL_LATEST)) {
@@ -61,7 +64,7 @@ function buildLatestMap(liveRecords) {
   }
   for (const r of liveRecords) {
     if (r.tipo !== "stock") continue;
-    const key = `${r.sede}||${r.proveedor}||${r.producto}`;
+    const key = `${r.sede}||${r.proveedor}||${canonicalProductName(r.producto)}`;
     if (!map[key] || r.fecha >= map[key].fecha) map[key] = { fecha:r.fecha, cantidad:r.cantidad };
   }
   return map;
@@ -72,7 +75,7 @@ function buildTrendMap(liveRecords) {
   for (const [k,v] of Object.entries(INVENTARIO_EXCEL_TREND)) map[k] = v.map(([f,q])=>[normalizeDate(f),q]);
   for (const r of liveRecords) {
     if (r.tipo !== "stock") continue;
-    const key = `${r.sede}||${r.proveedor}||${r.producto}`;
+    const key = `${r.sede}||${r.proveedor}||${canonicalProductName(r.producto)}`;
     if (!map[key]) map[key] = [];
     map[key].push([r.fecha, r.cantidad]);
   }
@@ -458,21 +461,7 @@ function MatrixTable({ latestMap, filtCat, onSedeClick, activeSedeCol, catOverri
 // ADMIN VIEW
 // ══════════════════════════════════════════════════════════════════════════════
 function ListaCompras({ latestMap, extraProds=[], deletedProds=new Set() }) {
-  const [sedeFilter,setSedeFilter] = useState("");
-
-  const latestDateBySede = useMemo(()=>{
-    const dates={};
-    const activeSedes=new Set(INVENTARIO_SEDES);
-    for(const [key,entry] of Object.entries(latestMap)){
-      const [sede]=key.split("||");
-      const fecha=normalizeDate(entry?.fecha);
-      if(!activeSedes.has(sede)||!fecha)continue;
-      if(!dates[sede]||fecha>dates[sede])dates[sede]=fecha;
-    }
-    return dates;
-  },[latestMap]);
-
-  const allRows = useMemo(()=>{
+  const rows = useMemo(()=>{
     const out=[];
     for(const sede of INVENTARIO_SEDES){
       const prods=[...(INVENTARIO_CATALOG[sede]||[]),...extraProds];
@@ -482,64 +471,31 @@ function ListaCompras({ latestMap, extraProds=[], deletedProds=new Set() }) {
         seen.add(p.producto);
         const min=Number(getMinStockByProd(sede,p.producto)??p.min_stock??0);
         const entry=getLatestByProd(sede,p.producto,latestMap);
-        const entryDate=normalizeDate(entry?.fecha);
-        // La lista solo representa el último inventario completo de cada sede.
-        // Sin registro, o con un registro anterior a esa actualización, el insumo se omite.
-        if(!entryDate||entryDate!==latestDateBySede[sede])continue;
-        const actual=Number(entry.cantidad);
-        if(!Number.isFinite(actual))continue;
+        const actual=Number(entry?.cantidad??0);
         const comprar=Math.max(0,min-actual);
-        if(comprar>0)out.push({producto:p.producto,fecha:entryDate,actual,min,comprar,sede});
+        if(comprar>0)out.push({producto:p.producto,actual,min,comprar,sede});
       }
     }
     return out.sort((a,b)=>a.sede.localeCompare(b.sede)||a.producto.localeCompare(b.producto));
-  },[latestMap,extraProds,deletedProds,latestDateBySede]);
+  },[latestMap,extraProds,deletedProds]);
 
-  const rows = useMemo(()=>sedeFilter?allRows.filter(r=>r.sede===sedeFilter):allRows,[allRows,sedeFilter]);
-
-  const downloadTxt=()=>{
-    const clean=v=>String(v??"").replace(/[\t\r\n]+/g," ");
-    const header=["Tipo de producto","Última actualización","Actual","Mínimo","A comprar","Sede"];
-    const lines=[header,...rows.map(r=>[r.producto,r.fecha?fdateFull(r.fecha):"Sin registro",r.actual,r.min,r.comprar,r.sede])];
-    const blob=new Blob(["\uFEFF"+lines.map(line=>line.map(clean).join("\t")).join("\r\n")],{type:"text/plain;charset=utf-8"});
-    const url=URL.createObjectURL(blob);
-    const link=document.createElement("a");
-    link.href=url;
-    link.download=`lista-compras-${today()}.txt`;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(url);
-  };
-
-  return <div style={{ flex:1,overflowY:"auto",padding:"14px 20px",fontFamily:"'Sora',sans-serif" }}>
-    <div style={{ display:"flex",alignItems:"flex-end",justifyContent:"space-between",marginBottom:10 }}>
-      <div><div style={{ fontSize:15,fontWeight:700 }}>Lista de compras</div><div style={{ fontSize:10,color:"#a3a3a3",marginTop:3 }}>Insumos de la última actualización bajo el stock mínimo, ordenados por sede.</div></div>
-      <div style={{ display:"flex",alignItems:"center",gap:7 }}>
-        <select value={sedeFilter} onChange={e=>setSedeFilter(e.target.value)} aria-label="Filtrar lista de compras por sede" style={{ ...I,width:180,padding:"5px 9px",fontSize:10,cursor:"pointer" }}>
-          <option value="">Todas las sedes</option>
-          {INVENTARIO_SEDES.map(sede=><option key={sede} value={sede}>{sede}</option>)}
-        </select>
-        <button onClick={downloadTxt} disabled={!rows.length} style={{ ...BP,padding:"5px 10px",fontSize:10,opacity:rows.length?1:0.4 }}>
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 3v12"/><polyline points="7 10 12 15 17 10"/><path d="M5 21h14"/></svg>
-          Descargar TXT
-        </button>
-        <div style={{ fontSize:10,color:"#b45309",background:"#fffbeb",border:"1px solid #fde68a",borderRadius:6,padding:"4px 8px" }}><strong>{rows.length}</strong> pendientes</div>
-      </div>
+  return <div style={{ flex:1,overflowY:"auto",padding:"20px 24px",fontFamily:"'Sora',sans-serif" }}>
+    <div style={{ display:"flex",alignItems:"flex-end",justifyContent:"space-between",marginBottom:14 }}>
+      <div><div style={{ fontSize:15,fontWeight:700 }}>Lista de compras</div><div style={{ fontSize:10,color:"#a3a3a3",marginTop:3 }}>Insumos bajo el stock mínimo, ordenados por sede.</div></div>
+      <div style={{ fontSize:11,color:"#b45309",background:"#fffbeb",border:"1px solid #fde68a",borderRadius:6,padding:"5px 9px" }}><strong>{rows.length}</strong> pendientes</div>
     </div>
     <div style={{ background:"#fff",border:"1px solid #e5e5e5",borderRadius:10,overflow:"hidden" }}>
-      <table style={{ width:"100%",borderCollapse:"collapse",fontSize:10 }}>
+      <table style={{ width:"100%",borderCollapse:"collapse",fontSize:11 }}>
         <thead><tr style={{ background:"#fafafa",borderBottom:"1px solid #e5e5e5" }}>
-          {["Tipo de producto","Última actualización","Actual","Mínimo","A comprar","Sede"].map((h,i)=><th key={h} style={{ padding:"6px 10px",textAlign:i===0||i===1||i===5?"left":"center",fontSize:8,color:"#a3a3a3",textTransform:"uppercase",letterSpacing:"0.05em",fontWeight:600 }}>{h}</th>)}
+          {["Tipo de producto","Actual","Mínimo","A comprar","Sede"].map((h,i)=><th key={h} style={{ padding:"10px 14px",textAlign:i===0||i===4?"left":"center",fontSize:9,color:"#a3a3a3",textTransform:"uppercase",letterSpacing:"0.05em",fontWeight:600 }}>{h}</th>)}
         </tr></thead>
         <tbody>{rows.length?rows.map((r,i)=><tr key={`${r.sede}||${r.producto}`} style={{ borderBottom:i<rows.length-1?"1px solid #f5f5f5":"none" }}>
-          <td style={{ padding:"5px 10px",fontWeight:500,color:"#262626" }}>{r.producto}</td>
-          <td style={{ padding:"5px 10px",fontFamily:"'JetBrains Mono',monospace",color:r.fecha?"#525252":"#a3a3a3",whiteSpace:"nowrap" }}>{fdateFull(r.fecha)}</td>
-          <td style={{ padding:"5px 10px",textAlign:"center",fontFamily:"'JetBrains Mono',monospace",color:r.actual<=0?"#dc2626":"#737373" }}>{r.actual}</td>
-          <td style={{ padding:"5px 10px",textAlign:"center",fontFamily:"'JetBrains Mono',monospace",color:"#737373" }}>{r.min}</td>
-          <td style={{ padding:"5px 10px",textAlign:"center" }}><span style={{ display:"inline-block",minWidth:28,padding:"2px 7px",borderRadius:4,background:"#fef2f2",color:"#dc2626",fontFamily:"'JetBrains Mono',monospace",fontWeight:700 }}>{r.comprar}</span></td>
-          <td style={{ padding:"5px 10px",color:"#525252" }}>{r.sede}</td>
-        </tr>):<tr><td colSpan="6" style={{ padding:30,textAlign:"center",color:"#a3a3a3" }}>{sedeFilter?`No hay insumos pendientes de compra en ${sedeFilter}.`:"No hay insumos pendientes de compra."}</td></tr>}</tbody>
+          <td style={{ padding:"10px 14px",fontWeight:500,color:"#262626" }}>{r.producto}</td>
+          <td style={{ padding:"10px 14px",textAlign:"center",fontFamily:"'JetBrains Mono',monospace",color:r.actual<=0?"#dc2626":"#737373" }}>{r.actual}</td>
+          <td style={{ padding:"10px 14px",textAlign:"center",fontFamily:"'JetBrains Mono',monospace",color:"#737373" }}>{r.min}</td>
+          <td style={{ padding:"10px 14px",textAlign:"center" }}><span style={{ display:"inline-block",minWidth:30,padding:"3px 8px",borderRadius:5,background:"#fef2f2",color:"#dc2626",fontFamily:"'JetBrains Mono',monospace",fontWeight:700 }}>{r.comprar}</span></td>
+          <td style={{ padding:"10px 14px",color:"#525252" }}>{r.sede}</td>
+        </tr>):<tr><td colSpan="5" style={{ padding:30,textAlign:"center",color:"#a3a3a3" }}>No hay insumos pendientes de compra.</td></tr>}</tbody>
       </table>
     </div>
   </div>;
@@ -551,24 +507,9 @@ function InventarioAdmin({ records, user, conn, onSaved, catOverrides={}, breake
   const [activeSedeCol, setActiveSedeCol] = useState(null);
   const [previewCM, setPreviewCM] = useState(false);
   const [previewSede, setPreviewSede] = useState(INVENTARIO_SEDES[0]);
-  const historyDetailRef = useRef(null);
 
   const latestMap = useMemo(()=>buildLatestMap(records),[records]);
   const trendMap  = useMemo(()=>buildTrendMap(records),[records]);
-  const lastUpdateBySede = useMemo(()=>{
-    const dates={};
-    for(const record of records){
-      if(!record.sede||!record.fecha)continue;
-      const fecha=normalizeDate(record.fecha)||record.fecha;
-      if(!dates[record.sede]||fecha>dates[record.sede])dates[record.sede]=fecha;
-    }
-    return dates;
-  },[records]);
-
-  const openSedeHistory=sede=>{
-    setPreviewSede(sede);
-    setTimeout(()=>historyDetailRef.current?.scrollIntoView({behavior:"smooth",block:"start"}),0);
-  };
 
   const alertas = useMemo(()=>{
     let rojo=0,amarillo=0;
@@ -687,31 +628,17 @@ function InventarioAdmin({ records, user, conn, onSaved, catOverrides={}, breake
           </div>
         )}
         {tab==="historial"&&(
-          <div style={{ flex:1,overflowY:"auto",padding:"16px 20px" }}>
+          <div style={{ flex:1,overflowY:"auto",padding:"20px 24px" }}>
             <div style={{ marginBottom:16 }}>
-              <div style={{ fontSize:10,fontWeight:600,color:"#a3a3a3",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:8 }}>Sedes activas · última actualización</div>
-              <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(150px,1fr))",gap:6 }}>
-                {INVENTARIO_SEDES.map(sede=>{
-                  const active=previewSede===sede;
-                  const fecha=lastUpdateBySede[sede];
-                  return <button key={sede} onClick={()=>openSedeHistory(sede)} style={{
-                    padding:"8px 10px",textAlign:"left",cursor:"pointer",borderRadius:7,
-                    border:active?"1px solid #1a1a1a":"1px solid #e5e5e5",
-                    background:active?"#1a1a1a":"#fff",fontFamily:"'Sora',sans-serif"
-                  }}>
-                    <div style={{ fontSize:10,fontWeight:600,color:active?"#fff":"#404040",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis" }}>{sede}</div>
-                    <div style={{ fontSize:9,color:active?"#d4d4d4":fecha?"#737373":"#b3b3b3",marginTop:3,fontFamily:"'JetBrains Mono',monospace" }}>{fecha?fdateFull(fecha):"Sin registros"}</div>
-                  </button>;
-                })}
-              </div>
+              <label style={FL}>Sede</label>
+              <select value={previewSede} onChange={e=>setPreviewSede(e.target.value)} style={{ ...I,width:220,cursor:"pointer" }}>
+                {INVENTARIO_SEDES.map(s=><option key={s} value={s}>{s}</option>)}
+              </select>
             </div>
-            <div ref={historyDetailRef}>
-              <div style={{ fontSize:13,fontWeight:700,color:"#262626",marginBottom:10 }}>{previewSede}</div>
-              <HistorialSede sede={previewSede} records={records} latestMap={latestMap}
-                onRecordUpdate={r=>{ const upd=records.map(x=>x.id===r.id?r:x); onSaved(upd); setCached(upd); }}
-                canDelete={true}
-                onRecordDelete={id=>{ const upd=records.filter(x=>x.id!==id); onSaved(upd); setCached(upd); }}/>
-            </div>
+            <HistorialSede sede={previewSede} records={records} latestMap={latestMap}
+              onRecordUpdate={r=>{ const upd=records.map(x=>x.id===r.id?r:x); onSaved(upd); setCached(upd); }}
+              canDelete={true}
+              onRecordDelete={id=>{ const upd=records.filter(x=>x.id!==id); onSaved(upd); setCached(upd); }}/>
           </div>
         )}
         {tab==="directorio"&&<DirectorioCM conn={conn} catOverrides={catOverrides} onCatOverride={onCatOverride} extraProds={extraProds} onAddProd={onAddProd} onRemoveProd={onRemoveProd} deletedProds={deletedProds} onDeleteCatalogProd={onDeleteCatalogProd}/>}
@@ -834,33 +761,54 @@ function FormRegistro({ sede, records=[], user, conn, onSaved, isPreview, breake
   // Merge catalog + extra products (localStorage + global from Sheets)
   // Catalog products: filter globally deleted + locally hidden
   const catalogProds = (INVENTARIO_CATALOG[sede]||[]).filter(p=>!deletedProds.has(p.producto)&&!hiddenProds.has(p.producto));
-  const allSedeProds = [...catalogProds];
+  const allSedeProds = [];
+  const canonicalSeen = new Set();
+  for (const p of catalogProds) {
+    const producto=canonicalProductName(p.producto);
+    const key=`${p.subcategoria||"_general"}||${producto}`;
+    if(!canonicalSeen.has(key)){canonicalSeen.add(key);allSedeProds.push({...p,producto});}
+  }
   // Extra products: filter globally deleted AND locally hidden
   for (const ep of [...extraProds, ...globalExtraProds]) {
-    if (!allSedeProds.some(p=>p.producto===ep.producto) && !deletedProds.has(ep.producto) && !hiddenProds.has(ep.producto)) allSedeProds.push(ep);
+    const producto=canonicalProductName(ep.producto);
+    const key=`${ep.subcategoria||"_general"}||${producto}`;
+    if (!canonicalSeen.has(key) && !deletedProds.has(producto) && !hiddenProds.has(producto)) { canonicalSeen.add(key); allSedeProds.push({...ep,producto}); }
   }
+
+  // En la pantalla OM se muestran únicamente insumos que tengan historia en
+  // esta sede. Los agregados manualmente se mantienen visibles para permitir
+  // ingresar su primer inventario.
+  const manuallyAdded = new Set(extraProds.map(p=>canonicalProductName(p.producto)));
+  const productos = allSedeProds.filter(p=>{
+    if(manuallyAdded.has(p.producto))return true;
+    return p.subcategoria
+      ? getTrendByProvProdDedup(sede,p.proveedor,p.producto,trendMap).length>0
+      : getTrendByProdDedup(sede,p.producto,trendMap).length>0;
+  });
 
   // Products from other sedes not yet in this sede (for the "add" dropdown)
   const availableToAdd = useMemo(()=>{
-    const existing = new Set(allSedeProds.map(p=>p.producto));
+    const existing = new Set(productos.map(p=>canonicalProductName(p.producto)));
     const seen = new Set();
     const out = [];
     for (const prods of Object.values(INVENTARIO_CATALOG)) {
       for (const p of prods) {
-        if (!existing.has(p.producto)&&!seen.has(p.producto)) {
-          seen.add(p.producto);
-          out.push({...p, categoria:finalCat(p)});
+        const producto=canonicalProductName(p.producto);
+        if (!existing.has(producto)&&!seen.has(producto)) {
+          seen.add(producto);
+          out.push({...p,producto,categoria:finalCat(p)});
         }
       }
     }
     for (const p of globalExtraProds) {
-      if (!existing.has(p.producto)&&!seen.has(p.producto)) {
-        seen.add(p.producto);
-        out.push({ proveedor:p.proveedor||p.categoria, producto:p.producto, min_stock:p.min_stock||1, categoria:p.categoria, subcategoria:null });
+      const producto=canonicalProductName(p.producto);
+      if (!existing.has(producto)&&!seen.has(producto)) {
+        seen.add(producto);
+        out.push({ proveedor:p.proveedor||p.categoria, producto, min_stock:p.min_stock||1, categoria:p.categoria, subcategoria:null });
       }
     }
     return out.sort((a,b)=>a.producto.localeCompare(b.producto));
-  },[allSedeProds, globalExtraProds]);
+  },[productos, globalExtraProds]);
 
   const handleAddProd = (cat, subcat) => {
     if (!newProd.producto) return;
@@ -879,7 +827,6 @@ function FormRegistro({ sede, records=[], user, conn, onSaved, isPreview, breake
     setShowAddForm(null);
   };
 
-  const productos = allSedeProds;
   const cats = CAT_ORDER.filter(c=>productos.some(p=>p.categoria===c)||availableToAdd.some(p=>p.categoria===c));
 
   const handleGuardar = async () => {
@@ -966,12 +913,23 @@ function FormRegistro({ sede, records=[], user, conn, onSaved, isPreview, breake
           </div>}
         </div>
       </div>
-      <div style={{ display:"flex",gap:10,marginBottom:18,alignItems:"flex-end",flexWrap:"wrap" }}>
+      <div style={{ display:"flex",gap:10,marginBottom:12,alignItems:"flex-end",flexWrap:"wrap" }}>
         <div style={{ width:150 }}>
           <label style={FL}>Fecha</label>
           <input type="date" value={fecha} onChange={e=>setFecha(e.target.value)} style={I}/>
         </div>
+        {!isPreview&&<button onClick={()=>{setNewProd({producto:"",min_stock:1});setShowAddForm(showAddForm==="__quick__"?null:"__quick__");}} style={{ ...BP,background:"#4f46e5",padding:"9px 15px",boxShadow:"0 2px 8px rgba(79,70,229,0.22)" }}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Agregar nuevo producto
+        </button>}
       </div>
+
+      {showAddForm==="__quick__"&&<div style={{ display:"flex",gap:8,alignItems:"flex-end",padding:"12px 14px",marginBottom:16,background:"#f5f3ff",border:"1px solid #c4b5fd",borderRadius:10,flexWrap:"wrap" }}>
+        <div style={{ flex:1,minWidth:240 }}><label style={{...FL,color:"#6366f1"}}>Producto</label><select value={newProd.producto} onChange={e=>{const ref=availableToAdd.find(p=>p.producto===e.target.value);setNewProd({producto:e.target.value,min_stock:ref?.min_stock||1});}} style={{...I,cursor:"pointer"}}><option value="">Seleccionar producto…</option>{availableToAdd.map(p=><option key={`${p.categoria}||${p.producto}`} value={p.producto}>{p.categoria} · {p.producto}</option>)}</select></div>
+        <div style={{width:72}}><label style={{...FL,color:"#6366f1"}}>Mínimo</label><input type="number" min="1" value={newProd.min_stock} onChange={e=>setNewProd(p=>({...p,min_stock:e.target.value}))} style={{...I,textAlign:"center"}}/></div>
+        <button disabled={!newProd.producto} onClick={()=>{const ref=availableToAdd.find(p=>p.producto===newProd.producto);if(ref)handleAddProd(ref.categoria,ref.subcategoria||null);}} style={{...BP,background:"#4f46e5",padding:"9px 15px",opacity:newProd.producto?1:0.4}}>Agregar</button>
+        <button onClick={()=>setShowAddForm(null)} style={{...BP,background:"#fff",color:"#737373",border:"1px solid #ddd6fe",padding:"9px 12px"}}>Cancelar</button>
+      </div>}
 
       {cats.map(cat=>{
         const catProds = productos.filter(p=>p.categoria===cat);
