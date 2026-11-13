@@ -1,4 +1,5 @@
 import { canonicalSede, isRetiredSede } from "./sedes.js";
+import { canonicalProducto } from "./productos.js";
 
 const SHEET_ID = import.meta.env.VITE_GOOGLE_SHEET_ID;
 const API_KEY = import.meta.env.VITE_GOOGLE_API_KEY;
@@ -12,7 +13,7 @@ function rowToRecord(row) {
     id: row[0] || "",
     sede: canonicalSede(row[1] || ""),
     proveedor: row[2] || "",
-    producto: row[3] || "",
+    producto: canonicalProducto(row[3] || ""),
     fecha: row[4] || "",
     cantidad: row[5] !== "" && row[5] != null ? parseFloat(row[5]) : null,
     tipo: row[6] || "stock",
@@ -21,7 +22,7 @@ function rowToRecord(row) {
 }
 
 function recordToRow(r) {
-  return [r.id, canonicalSede(r.sede), r.proveedor, r.producto, r.fecha, r.cantidad ?? "", r.tipo, r.registrado_por];
+  return [r.id, canonicalSede(r.sede), r.proveedor, canonicalProducto(r.producto), r.fecha, r.cantidad ?? "", r.tipo, r.registrado_por];
 }
 
 export async function fetchInventario() {
@@ -40,7 +41,7 @@ export async function fetchInventario() {
   if (!res.ok) throw new Error("Sheets API error: " + res.status);
   const data = await res.json();
   const rows = data.values || [];
-  return rows.map(rowToRecord).filter(r => r.id && r.sede && !isRetiredSede(r.sede));
+  return rows.map(rowToRecord).filter(r => r.id && r.sede && r.producto && !isRetiredSede(r.sede));
 }
 
 async function callAppsScript(action, payload) {

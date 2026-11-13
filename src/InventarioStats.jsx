@@ -3,9 +3,10 @@ import { INVENTARIO_CATALOG, INVENTARIO_SEDES } from "./inventario_catalog.js";
 import { INVENTARIO_EXCEL_TREND, INVENTARIO_EXCEL_LATEST } from "./inventario_history.js";
 import { fetchInventario } from "./inventario_sheets.js";
 import { canonicalSede, isRetiredSede } from "./sedes.js";
+import { canonicalProducto } from "./productos.js";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-function getCached(){try{return JSON.parse(localStorage.getItem("cw_inv_cache")||"[]").map(r=>({...r,sede:canonicalSede(r.sede)})).filter(r=>!isRetiredSede(r.sede))}catch{return[]}}
+function getCached(){try{return JSON.parse(localStorage.getItem("cw_inv_cache")||"[]").map(r=>({...r,sede:canonicalSede(r.sede),producto:canonicalProducto(r.producto)})).filter(r=>r.producto&&!isRetiredSede(r.sede))}catch{return[]}}
 function setCached(d){localStorage.setItem("cw_inv_cache",JSON.stringify(d))}
 function getLevel(qty,min){if(qty==null)return"nd";if(qty<=0)return"rojo";if(qty<=min)return"amarillo";return"ok"}
 function getMinStk(sede,prod){return(INVENTARIO_CATALOG[sede]||[]).find(p=>p.producto===prod)?.min_stock??null}
@@ -13,20 +14,37 @@ function fdate(d){if(!d)return"—";return new Date(d+"T12:00:00").toLocaleDateS
 function median(arr){if(!arr.length)return 0;const s=[...arr].sort((a,b)=>a-b);const h=Math.floor(s.length/2);return s.length%2?s[h]:(s[h-1]+s[h])/2}
 
 function buildLatest(live){
-  const m={...INVENTARIO_EXCEL_LATEST};
+  const m={};
+  for(const[k,v]of Object.entries(INVENTARIO_EXCEL_LATEST)){
+    const[sede,proveedor,rawProducto]=k.split("||");
+    const producto=canonicalProducto(rawProducto);
+    if(!producto)continue;
+    const key=`${sede}||${proveedor}||${producto}`;
+    if(!m[key]||v.fecha>=m[key].fecha)m[key]=v;
+  }
   for(const r of live){
     if(r.tipo!=="stock")continue;
-    const k=`${r.sede}||${r.proveedor}||${r.producto}`;
+    const producto=canonicalProducto(r.producto);
+    if(!producto)continue;
+    const k=`${r.sede}||${r.proveedor}||${producto}`;
     if(!m[k]||r.fecha>=m[k].fecha)m[k]={fecha:r.fecha,cantidad:r.cantidad};
   }
   return m;
 }
 function buildTrend(live){
   const m={};
-  for(const[k,v]of Object.entries(INVENTARIO_EXCEL_TREND))m[k]=[...v];
+  for(const[k,v]of Object.entries(INVENTARIO_EXCEL_TREND)){
+    const[sede,proveedor,rawProducto]=k.split("||");
+    const producto=canonicalProducto(rawProducto);
+    if(!producto)continue;
+    const key=`${sede}||${proveedor}||${producto}`;
+    m[key]=[...(m[key]||[]),...v];
+  }
   for(const r of live){
     if(r.tipo!=="stock")continue;
-    const k=`${r.sede}||${r.proveedor}||${r.producto}`;
+    const producto=canonicalProducto(r.producto);
+    if(!producto)continue;
+    const k=`${r.sede}||${r.proveedor}||${producto}`;
     if(!m[k])m[k]=[];
     m[k].push([r.fecha,r.cantidad]);
   }
@@ -35,7 +53,7 @@ function buildTrend(live){
 }
 
 // Products that appear under wrong category — canonical override
-const CAT_FIX={"Aceite de Oliva":"Cafetería","Aceto Balsámico":"Cafetería","Café Granulado":"Cafetería","Vinagre":"Cafetería","Papel Higiénico":"Papelería","Papel Interfoliado":"Papelería","Toalla de Papel":"Papelería"};
+const CAT_FIX={"Aceite de Oliva 1L":"Cafetería","Aceto Balsámico":"Cafetería","Café Granulado":"Cafetería","Vinagre Rosado":"Cafetería","Papel Higiénico":"Papelería","Papel Interfoliado":"Papelería","Toalla de Papel":"Papelería"};
 function fcat(p){return CAT_FIX[p.producto]||p.categoria;}
 
 function getAllProds(){

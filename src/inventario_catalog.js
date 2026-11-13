@@ -1,5 +1,7 @@
-// Catalogo normalizado
-export const INVENTARIO_CATALOG = {
+import { canonicalProducto } from "./productos.js";
+
+// Catálogo de origen. La exportación pública se normaliza al final del archivo.
+const RAW_INVENTARIO_CATALOG = {
   "Abedules": [
     { proveedor: "Aseo", producto: "Aceite de Oliva", min_stock: 2, categoria: "Aseo" },
     { proveedor: "Aseo", producto: "Aceto Balsámico", min_stock: 1, categoria: "Aseo" },
@@ -445,4 +447,22 @@ export const INVENTARIO_CATALOG = {
   "S2GO": [],
   "Salesforce": [],
 };
+
+export const INVENTARIO_CATALOG = Object.fromEntries(
+  Object.entries(RAW_INVENTARIO_CATALOG).map(([sede, products]) => {
+    const normalized = new Map();
+    for (const product of products) {
+      const producto = canonicalProducto(product.producto);
+      if (!producto) continue;
+      const key = `${product.proveedor}||${producto}`;
+      const current = normalized.get(key);
+      if (current) {
+        current.min_stock = Math.max(Number(current.min_stock || 0), Number(product.min_stock || 0));
+      } else {
+        normalized.set(key, { ...product, producto });
+      }
+    }
+    return [sede, [...normalized.values()]];
+  })
+);
 export const INVENTARIO_SEDES = ["Abedules", "Alto el Golf", "Apoquindo", "Cerro el Plomo", "Chery", "Coldwell", "Kennedy", "Londres 43 - PPD", "Nido 9", "Neohaus", "Nueva Las Condes", "Plaza Egaña", "S2GO", "Salesforce", "Santa Lucia", "Startuplab.01", "Suecia", "Vespucio"];

@@ -1,4 +1,5 @@
 import { canonicalSede, canonicalSedeKey, isRetiredSede } from "./sedes.js";
+import { canonicalProducto } from "./productos.js";
 
 // Config sheet: tipo | clave | valor | updated_at
 // Stores sede assignments and user role overrides synced across all devices.
@@ -74,7 +75,8 @@ export function parseRoleOverrides(configRows) {
 export function parseProdCat(configRows) {
   const map = {};
   for (const r of configRows) {
-    if (r.tipo === "prod_cat" && r.clave && r.valor) map[r.clave] = r.valor;
+    const producto = canonicalProducto(r.clave);
+    if (r.tipo === "prod_cat" && producto && r.valor) map[producto] = r.valor;
   }
   return map;
 }
@@ -85,7 +87,11 @@ export function parseBreakeven(configRows) {
   for (const r of configRows) {
     if (r.tipo === "breakeven" && r.clave && r.valor) {
       const val = parseFloat(r.valor);
-      if (!isNaN(val)) map[canonicalSedeKey(r.clave)] = val;
+      const canonicalKey = canonicalSedeKey(r.clave);
+      const separator = canonicalKey.indexOf("||");
+      const sede = separator >= 0 ? canonicalKey.slice(0, separator) : "";
+      const producto = separator >= 0 ? canonicalProducto(canonicalKey.slice(separator + 2)) : "";
+      if (!isNaN(val) && sede && producto) map[`${sede}||${producto}`] = val;
     }
   }
   return map;
@@ -98,9 +104,10 @@ export function parseProdGlobal(configRows) {
     if (r.tipo === "prod_global" && r.clave && r.valor && r.valor !== "deleted") {
       try {
         const d = JSON.parse(r.valor);
-        out.push({ producto: r.clave, categoria: d.categoria||"Aseo", proveedor: d.proveedor||"Aseo", min_stock: d.min_stock||1 });
+        const producto = canonicalProducto(r.clave);
+        if (producto) out.push({ producto, categoria: d.categoria||"Aseo", proveedor: d.proveedor||"Aseo", min_stock: d.min_stock||1 });
       } catch {}
     }
   }
-  return out;
+  return out.filter((product, index) => out.findIndex(other => other.producto === product.producto) === index);
 }

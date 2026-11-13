@@ -5,6 +5,7 @@ import { fetchInventario, saveInventarioRegistro, updateInventarioRecord, delete
 import { upsertConfig, fetchConfig, parseProdCat, parseBreakeven, parseProdGlobal, parseSedeCM } from "./config_sheets.js";
 import { USERS, today } from "./constants.js";
 import { canonicalSede, isRetiredSede } from "./sedes.js";
+import { canonicalProducto } from "./productos.js";
 
 // ── Shared styles ────────────────────────────────────────────────────────────
 const I = { appearance:"none",WebkitAppearance:"none",background:"#fff",border:"1px solid #e5e5e5",borderRadius:7,padding:"8px 11px",fontSize:12,color:"#1a1a1a",width:"100%",fontFamily:"'Sora',sans-serif",outline:"none",boxSizing:"border-box" };
@@ -15,11 +16,11 @@ const FL = { fontSize:10,fontWeight:500,color:"#a3a3a3",display:"block",marginBo
 function getSedeCMMap() { try { const map=JSON.parse(localStorage.getItem("cw_sede_cm")||"{}"); return Object.fromEntries(Object.entries(map).map(([email,sede])=>[email,canonicalSede(sede)]).filter(([,sede])=>!isRetiredSede(sede))); } catch { return {}; } }
 function setSedeCMMap(m) { localStorage.setItem("cw_sede_cm",JSON.stringify(m)); }
 function getCMSede(email) { return getSedeCMMap()[email.toLowerCase()]||null; }
-function getCached() { try { return JSON.parse(localStorage.getItem("cw_inv_cache")||"[]").map(r=>({...r,sede:canonicalSede(r.sede)})).filter(r=>!isRetiredSede(r.sede)); } catch { return []; } }
+function getCached() { try { return JSON.parse(localStorage.getItem("cw_inv_cache")||"[]").map(r=>({...r,sede:canonicalSede(r.sede),producto:canonicalProducto(r.producto)})).filter(r=>r.producto&&!isRetiredSede(r.sede)); } catch { return []; } }
 function setCached(d) { localStorage.setItem("cw_inv_cache",JSON.stringify(d)); }
 // Extra products per sede (added by CM users)
-function getExtraProds(sede) { try { const all=JSON.parse(localStorage.getItem("cw_extra_prods")||"{}"); return [...(all[sede]||[]),...(sede==="Nido 9"?all.Monjitas||[]:[])].filter((p,i,arr)=>arr.findIndex(q=>q.producto===p.producto)===i); } catch { return []; } }
-function saveExtraProds(sede,prods) { try { const all=JSON.parse(localStorage.getItem("cw_extra_prods")||"{}"); all[sede]=prods; if(sede==="Nido 9")delete all.Monjitas; localStorage.setItem("cw_extra_prods",JSON.stringify(all)); } catch {} }
+function getExtraProds(sede) { try { const all=JSON.parse(localStorage.getItem("cw_extra_prods")||"{}"); return [...(all[sede]||[]),...(sede==="Nido 9"?all.Monjitas||[]:[])].map(p=>({...p,producto:canonicalProducto(p.producto)})).filter(p=>p.producto).filter((p,i,arr)=>arr.findIndex(q=>q.producto===p.producto)===i); } catch { return []; } }
+function saveExtraProds(sede,prods) { try { const all=JSON.parse(localStorage.getItem("cw_extra_prods")||"{}"); all[sede]=prods.map(p=>({...p,producto:canonicalProducto(p.producto)})).filter(p=>p.producto); if(sede==="Nido 9")delete all.Monjitas; localStorage.setItem("cw_extra_prods",JSON.stringify(all)); } catch {} }
 // Pending record IDs: records saved locally while offline that haven't reached Sheets yet
 function getPendingIds() { try { return new Set(JSON.parse(localStorage.getItem("cw_pending_ids")||"[]")); } catch { return new Set(); } }
 function addPendingIds(ids) { const s=getPendingIds(); ids.forEach(id=>s.add(id)); localStorage.setItem("cw_pending_ids",JSON.stringify([...s])); }
@@ -60,26 +61,22 @@ function normalizeDate(d) {
   return d;
 }
 
-// Unifica errores de escritura conocidos conservando el nombre histórico
-// principal que ya usan el catálogo y los reportes.
-function canonicalProductName(name) {
-  const value=String(name||"").trim();
-  const key=value.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]/g,"");
-  const aliases={ lysoform:"Lisoform",lisoform:"Lisoform" };
-  return aliases[key]||value;
-}
-
 function buildLatestMap(liveRecords) {
   const map = {};
   for (const [k,v] of Object.entries(INVENTARIO_EXCEL_LATEST)) {
+    const [sede, proveedor, rawProducto] = k.split("||");
+    const producto = canonicalProducto(rawProducto);
     const fecha=normalizeDate(v.fecha);
-    if(fecha&&fecha<=today())map[k] = { fecha, cantidad: v.cantidad };
+    if(!producto||!fecha||fecha>today())continue;
+    const key = `${sede}||${proveedor}||${producto}`;
+    if (!map[key] || fecha >= map[key].fecha) map[key] = { fecha, cantidad:v.cantidad };
   }
   for (const r of liveRecords) {
     if (r.tipo !== "stock") continue;
+    const producto=canonicalProducto(r.producto);
     const fecha=normalizeDate(r.fecha);
-    if(!fecha||fecha>today())continue;
-    const key = `${r.sede}||${r.proveedor}||${canonicalProductName(r.producto)}`;
+    if(!producto||!fecha||fecha>today())continue;
+    const key = `${r.sede}||${r.proveedor}||${producto}`;
     if (!map[key] || fecha >= map[key].fecha) map[key] = { fecha, cantidad:r.cantidad };
   }
   return map;
@@ -87,12 +84,20 @@ function buildLatestMap(liveRecords) {
 
 function buildTrendMap(liveRecords) {
   const map = {};
-  for (const [k,v] of Object.entries(INVENTARIO_EXCEL_TREND)) map[k] = v.map(([f,q])=>[normalizeDate(f),q]).filter(([f])=>f&&f<=today());
+  for (const [k,v] of Object.entries(INVENTARIO_EXCEL_TREND)) {
+    const [sede, proveedor, rawProducto] = k.split("||");
+    const producto = canonicalProducto(rawProducto);
+    if(!producto)continue;
+    const key = `${sede}||${proveedor}||${producto}`;
+    const entries=v.map(([f,q])=>[normalizeDate(f),q]).filter(([f])=>f&&f<=today());
+    map[key]=[...(map[key]||[]),...entries];
+  }
   for (const r of liveRecords) {
     if (r.tipo !== "stock") continue;
+    const producto=canonicalProducto(r.producto);
     const fecha=normalizeDate(r.fecha);
-    if(!fecha||fecha>today())continue;
-    const key = `${r.sede}||${r.proveedor}||${canonicalProductName(r.producto)}`;
+    if(!producto||!fecha||fecha>today())continue;
+    const key = `${r.sede}||${r.proveedor}||${producto}`;
     if (!map[key]) map[key] = [];
     map[key].push([fecha, r.cantidad]);
   }
@@ -109,7 +114,8 @@ function buildTrendMap(liveRecords) {
 function parseDeletedProds(configRows) {
   const s = new Set();
   for (const r of configRows) {
-    if (r.tipo === "prod_global" && r.clave && r.valor === "deleted") s.add(r.clave);
+    const producto=canonicalProducto(r.clave);
+    if (r.tipo === "prod_global" && producto && r.valor === "deleted") s.add(producto);
   }
   return s;
 }
@@ -135,8 +141,8 @@ const SUBCAT_ORDER = [null,"Corporate Coffee","Café Caribe"];
 
 // Products that appear under wrong category — override to canonical category
 const CAT_FIX = {
-  "Aceite de Oliva":"Cafetería","Aceto Balsámico":"Cafetería",
-  "Café Granulado":"Cafetería","Vinagre":"Cafetería",
+  "Aceite de Oliva 1L":"Cafetería","Aceto Balsámico":"Cafetería",
+  "Café Granulado":"Cafetería","Vinagre Rosado":"Cafetería",
   "Papel Higiénico":"Papelería","Papel Interfoliado":"Papelería","Toalla de Papel":"Papelería"
 };
 function finalCat(p, catOverrides={}){ return catOverrides[p.producto] || CAT_FIX[p.producto] || p.categoria; }
@@ -857,20 +863,20 @@ function FormRegistro({ sede, records=[], user, conn, onSaved, isPreview, breake
   const allSedeProds = [];
   const canonicalSeen = new Set();
   for (const p of catalogProds) {
-    const producto=canonicalProductName(p.producto);
+    const producto=canonicalProducto(p.producto);
     const key=`${p.subcategoria||"_general"}||${producto}`;
     if(!canonicalSeen.has(key)){canonicalSeen.add(key);allSedeProds.push({...p,producto});}
   }
   // Extra products: filter globally deleted AND locally hidden
   for (const ep of [...extraProds, ...globalExtraProds]) {
-    const producto=canonicalProductName(ep.producto);
+    const producto=canonicalProducto(ep.producto);
     const key=`${ep.subcategoria||"_general"}||${producto}`;
     if (!canonicalSeen.has(key) && !deletedProds.has(producto) && !hiddenProds.has(producto)) { canonicalSeen.add(key); allSedeProds.push({...ep,producto}); }
   }
 
   // En la pantalla OM solo quedan insumos con historia en esta sede. Un
   // producto agregado manualmente se mantiene visible para su primer registro.
-  const manuallyAdded = new Set(extraProds.map(p=>canonicalProductName(p.producto)));
+  const manuallyAdded = new Set(extraProds.map(p=>canonicalProducto(p.producto)));
   const productos = allSedeProds.filter(p=>{
     if(manuallyAdded.has(p.producto))return true;
     return p.subcategoria
@@ -880,12 +886,12 @@ function FormRegistro({ sede, records=[], user, conn, onSaved, isPreview, breake
 
   // Products from other sedes not yet in this sede (for the "add" dropdown)
   const availableToAdd = useMemo(()=>{
-    const existing = new Set(productos.map(p=>canonicalProductName(p.producto)));
+    const existing = new Set(productos.map(p=>canonicalProducto(p.producto)));
     const seen = new Set();
     const out = [];
     for (const prods of Object.values(INVENTARIO_CATALOG)) {
       for (const p of prods) {
-        const producto=canonicalProductName(p.producto);
+        const producto=canonicalProducto(p.producto);
         if (!existing.has(producto)&&!seen.has(producto)) {
           seen.add(producto);
           out.push({...p,producto,categoria:finalCat(p)});
@@ -893,7 +899,7 @@ function FormRegistro({ sede, records=[], user, conn, onSaved, isPreview, breake
       }
     }
     for (const p of globalExtraProds) {
-      const producto=canonicalProductName(p.producto);
+      const producto=canonicalProducto(p.producto);
       if (!existing.has(producto)&&!seen.has(producto)) {
         seen.add(producto);
         out.push({ proveedor:p.proveedor||p.categoria, producto, min_stock:p.min_stock||1, categoria:p.categoria, subcategoria:null });
@@ -904,8 +910,13 @@ function FormRegistro({ sede, records=[], user, conn, onSaved, isPreview, breake
 
   const handleAddProd = (cat, subcat) => {
     if (!newProd.producto) return;
-    const ref = Object.values(INVENTARIO_CATALOG).flat().find(p=>p.producto===newProd.producto);
-    const np = { proveedor:ref?.proveedor||"Otro", producto:newProd.producto, categoria:cat, subcategoria:subcat!==undefined?subcat:(ref?.subcategoria||null), min_stock:Math.max(1,Number(newProd.min_stock)||1) };
+    const producto = canonicalProducto(newProd.producto);
+    if (!producto) {
+      window.alert("Ese insumo fue eliminado del catálogo y no puede volver a agregarse.");
+      return;
+    }
+    const ref = Object.values(INVENTARIO_CATALOG).flat().find(p=>p.producto===producto);
+    const np = { proveedor:ref?.proveedor||"Otro", producto, categoria:cat, subcategoria:subcat!==undefined?subcat:(ref?.subcategoria||null), min_stock:Math.max(1,Number(newProd.min_stock)||1) };
     const updated = [...extraProds, np];
     setExtraProds(updated);
     saveExtraProds(sede, updated);
@@ -1538,9 +1549,14 @@ function DirectorioCM({ conn, catOverrides, onCatOverride, extraProds=[], onAddP
 
   const handleCreateProd = async () => {
     if (!newGlobalProd.producto.trim()) return;
+    const producto = canonicalProducto(newGlobalProd.producto);
+    if (!producto) {
+      window.alert("Ese insumo fue eliminado del catálogo y no puede volver a agregarse.");
+      return;
+    }
     setSavingNew(true);
     const prod = {
-      producto: newGlobalProd.producto.trim(),
+      producto,
       categoria: newGlobalProd.categoria,
       proveedor: newGlobalProd.proveedor || newGlobalProd.categoria,
       min_stock: Number(newGlobalProd.min_stock) || 1,
